@@ -1,0 +1,1752 @@
+   1               	# 1 "3DProasm.S"
+   1               	;-------------------------------------------------------------------------------
+   0               	
+   0               	
+   2               	;*******************************************************************************
+   3               	;* File Name	: 3DProasm.S
+   4               	;* Project	: Microsoft Sidewinder 3D Pro/PP/FFP to USB converter
+   5               	;* Date		: 2005/05/31, 2006/12/14, 2008/02/12, 2009/06/26
+   6               	;* Version	: 4.0
+   7               	;* Target MCU	: AT90USB162/AT90USB82, ATMEGA16U4/ATMEGA32U4
+   8               	;* Tool Chain	: Atmel AVR Studio 4.17 666 / WinAVR 20090313
+   9               	;* Author	: Detlef "Grendel" Mueller
+  10               	;*		  detlef@gmail.com
+  11               	;* References	: Sidewinder.c by Vojtech Pavlik
+  12               	;*		  Patent #5628686, Apperatus and Method for Bidirectional
+  13               	;*			Data Communication in a Gameport, by Microsoft
+  14               	;* Description	: 3D Pro driver
+  15               	;* Device	: Microsoft SideWinder 3D Pro, Precision Pro, Force Feedback Pro
+  16               	;*
+  17               	;* Release Notes:
+  18               	;*
+  19               	;*	Joystick button mapping
+  20               	;*	=======================
+  21               	;*
+  22               	;*	B1 - PD0
+  23               	;*	B2 - PD1
+  24               	;*	B3 - PD2
+  25               	;*	B4 - PD3
+  26               	;*
+  27               	;*	3D Pro data packet structure (64bit)
+  28               	;*	====================================
+  29               	;*
+  30               	;*	0   ****0       0       0       0       0       0       1
+  31               	;*	6666555555555544444444443333333333222222222211111111110000000000
+  32               	;*	3210987654321098765432109876543210987654321098765432109876543210
+  33               	;*	----------------------------------------------------------------
+  34               	;*	sHHHccccsTTTTTTTsRRRRRRRsBBRRTTTsYYYYYYYsXXXXXXXsBBBBBBBsHXXXYYY
+  35               	;*	 210     6543210 6543210 8987987 6543210 6543210 7654321 3987987
+  36               	;*
+  37               	;*	Bit	Description		Comment
+  38               	;*	===	===========		=======
+  39               	;*	00	Y7
+  40               	;*	01	Y8
+  41               	;*	02	Y9
+  42               	;*	03	X7
+  43               	;*	04	X8
+  44               	;*	05	X9
+  45               	;*	06	H3
+  46               	;*	07	Sync			always 1
+  47               	;*	08	B1			Trigger (Buttons are low active !)
+  48               	;*	09	B2			2nd trigger
+  49               	;*	10	B3			Upper thumb
+  50               	;*	11	B4			Lower thumb
+  51               	;*	12	B5			Base 1
+  52               	;*	13	B6			Base 2
+  53               	;*	14	B7			Base 3
+  54               	;*	15	Sync			always 0
+  55               	;*	16	X0			X-axis
+  56               	;*	17	X1
+  57               	;*	18	X2
+  58               	;*	19	X3
+  59               	;*	20	X4
+  60               	;*	21	X5
+  61               	;*	22	X6
+  62               	;*	23	Sync			always 0
+  63               	;*	24	Y0			Y-axis
+  64               	;*	25	Y1
+  65               	;*	26	Y2
+  66               	;*	27	Y3
+  67               	;*	28	Y4
+  68               	;*	29	Y5
+  69               	;*	30	Y6
+  70               	;*	31	Sync			always 0
+  71               	;*	32	T7
+  72               	;*	33	T8
+  73               	;*	34	T9
+  74               	;*	35	Rz7
+  75               	;*	36	Rz8
+  76               	;*	37	B9			mode switch
+  77               	;*	38	B8			Base 4
+  78               	;*	39	Sync			always 0
+  79               	;*	40	Rz0			Rz-axis (twist)
+  80               	;*	41	Rz1
+  81               	;*	42	Rz2
+  82               	;*	43	Rz3
+  83               	;*	44	Rz4
+  84               	;*	45	Rz5
+  85               	;*	46	Rz6
+  86               	;*	47	Sync			always 0
+  87               	;*	48	T0			Throttle slider
+  88               	;*	49	T1
+  89               	;*	50	T2
+  90               	;*	51	T3
+  91               	;*	52	T4
+  92               	;*	53	T5
+  93               	;*	54	T6
+  94               	;*	55	Sync			always 0
+  95               	;*	56	chksum			Sum of all nibbles = 0
+  96               	;*	57	chksum
+  97               	;*	58	chksum
+  98               	;*	59	chksum
+  99               	;*	60	H0			Hat switch
+ 100               	;*	61	H1
+ 101               	;*	62	H2
+ 102               	;*	63	Sync			always 0
+ 103               	;*
+ 104               	;* Timer Trigger Signal
+ 105               	;* --+  +--....-------------------------------....-------------------------------
+ 106               	;*   |  |
+ 107               	;*   |  |
+ 108               	;*   +--+
+ 109               	;*
+ 110               	;*
+ 111               	;* 3DP Clock Line (Button 1) w/ Button 1 Released
+ 112               	;*
+ 113               	;* --------....-------------------+    +----+      +----+    +-------------------
+ 114               	;*                                |    |    |      |    |    |
+ 115               	;*                                |    |    |      |    |    |
+ 116               	;*                                +----+    +-....-+    +----+
+ 117               	;*      |<-....--- 100us -------->|<--------- 660us -------->|
+ 118               	;*
+ 119               	;*
+ 120               	;* 3DP Clock Line (Button 1) w/ Button 1 Pressed
+ 121               	;*
+ 122               	;*                 +--------------+    +----+      +----+    +--------------+
+ 123               	;*                 |              |    |    |      |    |    |              |
+ 124               	;*                 |              |    |    |      |    |    |              |
+ 125               	;* --------....----+              +----+    +-....-+    +----+              +----
+ 126               	;*                 |<-- 17.5us -->|                          |<-- 17.7us -->|
+ 127               	;*      |<-....--- 100us -------->|<--------- 660us -------->|
+ 128               	;*
+ 129               	;*
+ 130               	;* 3DP Clock Line (Button 1) Detail
+ 131               	;*
+ 132               	;*                         |<-- start of packet 2 or 3
+ 133               	;*      ----+    +----+    +------+    +----+
+ 134               	;*          |    |    |    |      |    |    |
+ 135               	;*          |    |    |    |      |    |    |
+ 136               	;*          +----+    +----+      +----+    +----
+ 137               	;*               |<-10us ->|<-12.5us ->|
+ 138               	;*
+ 139               	;*
+ 140               	;* Buttons 2-4 data is valid on rising edges of the clock. Buttons 1-4
+ 141               	;* are mapped to the button lines if no packet transfer is going on
+ 142               	;* (3D Pro only !)
+ 143               	;*
+ 144               	;* Calling conventions on gcc:
+ 145               	;* First parameter passed in R24/R25, second in R22/R23 and so on.
+ 146               	;* Callee must preserve R1-R17, R28/R29, result is passed in R24/R25.
+ 147               	;*
+ 148               	;* $Id: 3DProasm.S 1.5 2010/04/23 05:29:34 Detlef Exp Detlef $
+ 149               	;*******************************************************************************
+ 150               	;-------------------------------------------------------------------------------
+ 151               	
+ 152               	#include "3DPro.h"
+   1               	/*******************************************************************************
+   2               	 * File Name	: 3DPro.h
+   3               	 * Project	: 3DP-Vert, Microsoft Sidewinder 3D Pro/PP/FFP to USB converter
+   4               	 * Date		: 2005/05/31, 2006/12/14, 2008/02/12, 2009/06/16
+   5               	 * Version	: 4.0
+   6               	 * Target MCU	: AT90USB162/82, AT90USB646/1286, ATMEGA16U4/32U4
+   7               	 * Tool Chain	: Atmel AVR Studio 4.18 716 / WinAVR 20100110
+   8               	 * Author	: Detlef "Grendel" Mueller
+   9               	 *		  detlef@gmail.com
+  10               	 * Release Notes:
+  11               	 *
+  12               	 * $Id: 3DPro.h 1.6 2010/04/23 05:28:59 Detlef Exp Detlef $
+  13               	 ******************************************************************************/
+  14               	
+  15               	#ifndef	_3DPRO_H_
+  16               	#define	_3DPRO_H_
+  17               	
+  18               	//------------------------------------------------------------------------------
+  19               	
+  20               	#include "includes.h"
+   1               	/*******************************************************************************
+   2               	 * File Name	: includes.h
+   3               	 * Project	: Generic AVR based
+   4               	 * Date		: 2014/01/09
+   5               	 * Version      : 1.1
+   6               	 * Target MCU   : AT90USB8/162, ATMEGA16/32U4/U2, AT90USB64/1286
+   7               	 * Tool Chain   : Atmel AVR Studio 4.19 730,
+   8               	 *		  WinAVR-20100110 or avr-gcc 4.7.0 and avr-libc 1.8.0
+   9               	 * Author       : "Detlef Mueller" <detlef@gmail.com>
+  10               	 * Release Notes:
+  11               	 *
+  12               	 * $Id$
+  13               	 *
+  14               	 * $Log$
+  15               	 ******************************************************************************/
+  16               	
+  17               	#ifndef	__includes_h__
+  18               	#define	__includes_h__
+  19               	
+  20               	//------------------------------------------------------------------------------
+  21               	
+  22               	#if defined(__AVR_AT90USB162__) || defined(__AVR_AT90USB82__)
+  23               	 #define __AVR_AT90USBX2__
+  24               	#elif defined(__AVR_ATmega16U4__) || defined(__AVR_ATmega32U4__)
+  25               	 #define __AVR_ATmegaXU4__
+  26               	#elif defined(__AVR_AT90USB646__) || defined(__AVR_AT90USB1286__)
+  27               	 #define __AVR_AT90USBX6__
+  28               	#elif defined(__AVR_ATmega8U2__) || defined(__AVR_ATmega16U2__) || defined(__AVR_ATmega32U2__)
+  29               	 #define __AVR_ATmegaXU2__
+  30               	#else
+  31               	 #error "Unsupported device"
+  32               	#endif
+  33               	
+  34               	// #define __PROG_TYPES_COMPAT__
+  35               	
+  36               	//------------------------------------------------------------------------------
+  37               	
+  38               	#ifdef	__ASSEMBLER__
+  39               	
+  40               	//------------------------------------------------------------------------------
+  41               	
+  42               	#define	__SFR_OFFSET	0
+  43               	//#define	_VECTOR(N)	__vector_ ## N	/* io.h does not define this for asm */
+  44               	
+  45               	#include <avr/io.h>
+   1               	/* Copyright (c) 2002,2003,2005,2006,2007 Marek Michalkiewicz, Joerg Wunsch
+   2               	   Copyright (c) 2007 Eric B. Weddington
+   3               	   All rights reserved.
+   4               	
+   5               	   Redistribution and use in source and binary forms, with or without
+   6               	   modification, are permitted provided that the following conditions are met:
+   7               	
+   8               	   * Redistributions of source code must retain the above copyright
+   9               	     notice, this list of conditions and the following disclaimer.
+  10               	
+  11               	   * Redistributions in binary form must reproduce the above copyright
+  12               	     notice, this list of conditions and the following disclaimer in
+  13               	     the documentation and/or other materials provided with the
+  14               	     distribution.
+  15               	
+  16               	   * Neither the name of the copyright holders nor the names of
+  17               	     contributors may be used to endorse or promote products derived
+  18               	     from this software without specific prior written permission.
+  19               	
+  20               	  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+  21               	  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+  22               	  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+  23               	  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE
+  24               	  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  25               	  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+  26               	  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+  27               	  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  28               	  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+  29               	  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+  30               	  POSSIBILITY OF SUCH DAMAGE. */
+  31               	
+  32               	/* $Id$ */
+  33               	
+  34               	/** \file */
+  35               	/** \defgroup avr_io <avr/io.h>: AVR device-specific IO definitions
+  36               	    \code #include <avr/io.h> \endcode
+  37               	
+  38               	    This header file includes the apropriate IO definitions for the
+  39               	    device that has been specified by the <tt>-mmcu=</tt> compiler
+  40               	    command-line switch.  This is done by diverting to the appropriate
+  41               	    file <tt>&lt;avr/io</tt><em>XXXX</em><tt>.h&gt;</tt> which should
+  42               	    never be included directly.  Some register names common to all
+  43               	    AVR devices are defined directly within <tt>&lt;avr/common.h&gt;</tt>,
+  44               	    which is included in <tt>&lt;avr/io.h&gt;</tt>,
+  45               	    but most of the details come from the respective include file.
+  46               	
+  47               	    Note that this file always includes the following files:
+  48               	    \code 
+  49               	    #include <avr/sfr_defs.h>
+  50               	    #include <avr/portpins.h>
+  51               	    #include <avr/common.h>
+  52               	    #include <avr/version.h>
+  53               	    \endcode
+  54               	    See \ref avr_sfr for more details about that header file.
+  55               	
+  56               	    Included are definitions of the IO register set and their
+  57               	    respective bit values as specified in the Atmel documentation.
+  58               	    Note that inconsistencies in naming conventions,
+  59               	    so even identical functions sometimes get different names on
+  60               	    different devices.
+  61               	
+  62               	    Also included are the specific names useable for interrupt
+  63               	    function definitions as documented
+  64               	    \ref avr_signames "here".
+  65               	
+  66               	    Finally, the following macros are defined:
+  67               	
+  68               	    - \b RAMEND
+  69               	    <br>
+  70               	    The last on-chip RAM address.
+  71               	    <br>
+  72               	    - \b XRAMEND
+  73               	    <br>
+  74               	    The last possible RAM location that is addressable. This is equal to 
+  75               	    RAMEND for devices that do not allow for external RAM. For devices 
+  76               	    that allow external RAM, this will be larger than RAMEND.
+  77               	    <br>
+  78               	    - \b E2END
+  79               	    <br>
+  80               	    The last EEPROM address.
+  81               	    <br>
+  82               	    - \b FLASHEND
+  83               	    <br>
+  84               	    The last byte address in the Flash program space.
+  85               	    <br>
+  86               	    - \b SPM_PAGESIZE
+  87               	    <br>
+  88               	    For devices with bootloader support, the flash pagesize
+  89               	    (in bytes) to be used for the \c SPM instruction. 
+  90               	    - \b E2PAGESIZE
+  91               	    <br>
+  92               	    The size of the EEPROM page.
+  93               	    
+  94               	*/
+  95               	
+  96               	#ifndef _AVR_IO_H_
+  97               	#define _AVR_IO_H_
+  98               	
+  99               	#include <avr/sfr_defs.h>
+   1               	/* Copyright (c) 2002, Marek Michalkiewicz <marekm@amelek.gda.pl>
+ 100               	
+ 101               	#if defined (__AVR_AT94K__)
+ 102               	#  include <avr/ioat94k.h>
+ 103               	#elif defined (__AVR_AT43USB320__)
+ 104               	#  include <avr/io43u32x.h>
+ 105               	#elif defined (__AVR_AT43USB355__)
+ 106               	#  include <avr/io43u35x.h>
+ 107               	#elif defined (__AVR_AT76C711__)
+ 108               	#  include <avr/io76c711.h>
+ 109               	#elif defined (__AVR_AT86RF401__)
+ 110               	#  include <avr/io86r401.h>
+ 111               	#elif defined (__AVR_AT90PWM1__)
+ 112               	#  include <avr/io90pwm1.h>
+ 113               	#elif defined (__AVR_AT90PWM2__)
+ 114               	#  include <avr/io90pwmx.h>
+ 115               	#elif defined (__AVR_AT90PWM2B__)
+ 116               	#  include <avr/io90pwm2b.h>
+ 117               	#elif defined (__AVR_AT90PWM3__)
+ 118               	#  include <avr/io90pwmx.h>
+ 119               	#elif defined (__AVR_AT90PWM3B__)
+ 120               	#  include <avr/io90pwm3b.h>
+ 121               	#elif defined (__AVR_AT90PWM216__)
+ 122               	#  include <avr/io90pwm216.h>
+ 123               	#elif defined (__AVR_AT90PWM316__)
+ 124               	#  include <avr/io90pwm316.h>
+ 125               	#elif defined (__AVR_AT90PWM161__)
+ 126               	#  include <avr/io90pwm161.h>
+ 127               	#elif defined (__AVR_AT90PWM81__)
+ 128               	#  include <avr/io90pwm81.h>
+ 129               	#elif defined (__AVR_ATmega8U2__)
+ 130               	#  include <avr/iom8u2.h>
+ 131               	#elif defined (__AVR_ATmega16M1__)
+ 132               	#  include <avr/iom16m1.h>
+ 133               	#elif defined (__AVR_ATmega16U2__)
+ 134               	#  include <avr/iom16u2.h>
+ 135               	#elif defined (__AVR_ATmega16U4__)
+ 136               	#  include <avr/iom16u4.h>
+ 137               	#elif defined (__AVR_ATmega32C1__)
+ 138               	#  include <avr/iom32c1.h>
+ 139               	#elif defined (__AVR_ATmega32M1__)
+ 140               	#  include <avr/iom32m1.h>
+ 141               	#elif defined (__AVR_ATmega32U2__)
+ 142               	#  include <avr/iom32u2.h>
+ 143               	#elif defined (__AVR_ATmega32U4__)
+ 144               	#  include <avr/iom32u4.h>
+   1               	/* Copyright (c) 2008 Atmel Corporation
+ 145               	#elif defined (__AVR_ATmega32U6__)
+ 146               	#  include <avr/iom32u6.h>
+ 147               	#elif defined (__AVR_ATmega64C1__)
+ 148               	#  include <avr/iom64c1.h>
+ 149               	#elif defined (__AVR_ATmega64M1__)
+ 150               	#  include <avr/iom64m1.h>
+ 151               	#elif defined (__AVR_ATmega128__)
+ 152               	#  include <avr/iom128.h>
+ 153               	#elif defined (__AVR_ATmega128A__)
+ 154               	#  include <avr/iom128a.h>
+ 155               	#elif defined (__AVR_ATmega1280__)
+ 156               	#  include <avr/iom1280.h>
+ 157               	#elif defined (__AVR_ATmega1281__)
+ 158               	#  include <avr/iom1281.h>
+ 159               	#elif defined (__AVR_ATmega1284__)
+ 160               	#  include <avr/iom1284.h>
+ 161               	#elif defined (__AVR_ATmega1284P__)
+ 162               	#  include <avr/iom1284p.h>
+ 163               	#elif defined (__AVR_ATmega128RFA1__)
+ 164               	#  include <avr/iom128rfa1.h>
+ 165               	#elif defined (__AVR_ATmega1284RFR2__)
+ 166               	#  include <avr/iom1284rfr2.h>
+ 167               	#elif defined (__AVR_ATmega128RFR2__)
+ 168               	#  include <avr/iom128rfr2.h>
+ 169               	#elif defined (__AVR_ATmega2564RFR2__)
+ 170               	#  include <avr/iom2564rfr2.h>
+ 171               	#elif defined (__AVR_ATmega256RFR2__)
+ 172               	#  include <avr/iom256rfr2.h>
+ 173               	#elif defined (__AVR_ATmega2560__)
+ 174               	#  include <avr/iom2560.h>
+ 175               	#elif defined (__AVR_ATmega2561__)
+ 176               	#  include <avr/iom2561.h>
+ 177               	#elif defined (__AVR_AT90CAN32__)
+ 178               	#  include <avr/iocan32.h>
+ 179               	#elif defined (__AVR_AT90CAN64__)
+ 180               	#  include <avr/iocan64.h>
+ 181               	#elif defined (__AVR_AT90CAN128__)
+ 182               	#  include <avr/iocan128.h>
+ 183               	#elif defined (__AVR_AT90USB82__)
+ 184               	#  include <avr/iousb82.h>
+ 185               	#elif defined (__AVR_AT90USB162__)
+ 186               	#  include <avr/iousb162.h>
+ 187               	#elif defined (__AVR_AT90USB646__)
+ 188               	#  include <avr/iousb646.h>
+ 189               	#elif defined (__AVR_AT90USB647__)
+ 190               	#  include <avr/iousb647.h>
+ 191               	#elif defined (__AVR_AT90USB1286__)
+ 192               	#  include <avr/iousb1286.h>
+ 193               	#elif defined (__AVR_AT90USB1287__)
+ 194               	#  include <avr/iousb1287.h>
+ 195               	#elif defined (__AVR_ATmega644RFR2__)
+ 196               	#  include <avr/iom644rfr2.h>
+ 197               	#elif defined (__AVR_ATmega64RFR2__)
+ 198               	#  include <avr/iom64rfr2.h>
+ 199               	#elif defined (__AVR_ATmega64__)
+ 200               	#  include <avr/iom64.h>
+ 201               	#elif defined (__AVR_ATmega64A__)
+ 202               	#  include <avr/iom64a.h>
+ 203               	#elif defined (__AVR_ATmega640__)
+ 204               	#  include <avr/iom640.h>
+ 205               	#elif defined (__AVR_ATmega644__)
+ 206               	#  include <avr/iom644.h>
+ 207               	#elif defined (__AVR_ATmega644A__)
+ 208               	#  include <avr/iom644a.h>
+ 209               	#elif defined (__AVR_ATmega644P__)
+ 210               	#  include <avr/iom644p.h>
+ 211               	#elif defined (__AVR_ATmega644PA__)
+ 212               	#  include <avr/iom644pa.h>
+ 213               	#elif defined (__AVR_ATmega645__)
+ 214               	#  include <avr/iom645.h>
+ 215               	#elif (defined __AVR_ATmega645A__)
+ 216               	#include <avr/iom645a.h>
+ 217               	#elif (defined __AVR_ATmega645P__)
+ 218               	#include <avr/iom645p.h>
+ 219               	#elif defined (__AVR_ATmega6450__)
+ 220               	#  include <avr/iom6450.h>
+ 221               	#elif (defined __AVR_ATmega6450A__)
+ 222               	#include <avr/iom6450a.h>
+ 223               	#elif (defined __AVR_ATmega6450P__)
+ 224               	#include <avr/iom6450p.h>
+ 225               	#elif defined (__AVR_ATmega649__)
+ 226               	#  include <avr/iom649.h>
+ 227               	#elif (defined __AVR_ATmega649A__)
+ 228               	#include <avr/iom649a.h>
+ 229               	#elif defined (__AVR_ATmega6490__)
+ 230               	#  include <avr/iom6490.h>
+ 231               	#elif (defined __AVR_ATmega6490A__)
+ 232               	#include <avr/iom6490a.h>
+ 233               	#elif (defined __AVR_ATmega6490P__)
+ 234               	#include <avr/iom6490p.h>
+ 235               	#elif defined (__AVR_ATmega649P__)
+ 236               	#  include <avr/iom649p.h>
+ 237               	#elif defined (__AVR_ATmega64HVE__)
+ 238               	#  include <avr/iom64hve.h>
+ 239               	#elif defined (__AVR_ATmega64HVE2__)
+ 240               	#  include <avr/iom64hve2.h>
+ 241               	#elif defined (__AVR_ATmega103__)
+ 242               	#  include <avr/iom103.h>
+ 243               	#elif defined (__AVR_ATmega32__)
+ 244               	#  include <avr/iom32.h>
+ 245               	#elif defined (__AVR_ATmega32A__)
+ 246               	#  include <avr/iom32a.h>
+ 247               	#elif defined (__AVR_ATmega323__)
+ 248               	#  include <avr/iom323.h>
+ 249               	#elif defined (__AVR_ATmega324P__)
+ 250               	#  include <avr/iom324p.h>
+ 251               	#elif (defined __AVR_ATmega324A__)
+ 252               	#include <avr/iom324a.h>
+ 253               	#elif defined (__AVR_ATmega324PA__)
+ 254               	#  include <avr/iom324pa.h>
+ 255               	#elif defined (__AVR_ATmega325__)
+ 256               	#  include <avr/iom325.h>
+ 257               	#elif (defined __AVR_ATmega325A__)
+ 258               	#include <avr/iom325a.h>
+ 259               	#elif defined (__AVR_ATmega325P__)
+ 260               	#  include <avr/iom325p.h>
+ 261               	#elif defined (__AVR_ATmega325PA__)
+ 262               	#  include <avr/iom325pa.h>  
+ 263               	#elif defined (__AVR_ATmega3250__) 
+ 264               	#  include <avr/iom3250.h>
+ 265               	#elif (defined __AVR_ATmega3250A__)
+ 266               	#include <avr/iom3250a.h>
+ 267               	#elif defined (__AVR_ATmega3250P__)
+ 268               	#  include <avr/iom3250p.h>
+ 269               	#elif defined (__AVR_ATmega3250PA__)
+ 270               	#  include <avr/iom3250pa.h>  
+ 271               	#elif defined (__AVR_ATmega328P__)
+ 272               	#  include <avr/iom328p.h>
+ 273               	#elif (defined __AVR_ATmega328__)
+ 274               	#include <avr/iom328.h>
+ 275               	#elif defined (__AVR_ATmega329__)
+ 276               	#  include <avr/iom329.h>
+ 277               	#elif (defined __AVR_ATmega329A__)
+ 278               	#include <avr/iom329a.h>
+ 279               	#elif defined (__AVR_ATmega329P__) 
+ 280               	#  include <avr/iom329p.h>
+ 281               	#elif (defined __AVR_ATmega329PA__)
+ 282               	#include <avr/iom329pa.h>
+ 283               	#elif (defined __AVR_ATmega3290PA__)
+ 284               	#include <avr/iom3290pa.h>
+ 285               	#elif defined (__AVR_ATmega3290__)
+ 286               	#  include <avr/iom3290.h>
+ 287               	#elif (defined __AVR_ATmega3290A__)
+ 288               	#include <avr/iom3290a.h>
+ 289               	#elif defined (__AVR_ATmega3290P__)
+ 290               	#  include <avr/iom3290.h>
+ 291               	#elif defined (__AVR_ATmega32HVB__)
+ 292               	#  include <avr/iom32hvb.h>
+ 293               	#elif defined (__AVR_ATmega32HVBREVB__)
+ 294               	#  include <avr/iom32hvbrevb.h>
+ 295               	#elif defined (__AVR_ATmega406__)
+ 296               	#  include <avr/iom406.h>
+ 297               	#elif defined (__AVR_ATmega16__)
+ 298               	#  include <avr/iom16.h>
+ 299               	#elif defined (__AVR_ATmega16A__)
+ 300               	#  include <avr/iom16a.h>
+ 301               	#elif defined (__AVR_ATmega161__)
+ 302               	#  include <avr/iom161.h>
+ 303               	#elif defined (__AVR_ATmega162__)
+ 304               	#  include <avr/iom162.h>
+ 305               	#elif defined (__AVR_ATmega163__)
+ 306               	#  include <avr/iom163.h>
+ 307               	#elif defined (__AVR_ATmega164P__)
+ 308               	#  include <avr/iom164p.h>
+ 309               	#elif (defined __AVR_ATmega164A__)
+ 310               	#include <avr/iom164a.h>
+ 311               	#elif defined (__AVR_ATmega164PA__)
+ 312               	#  include <avr/iom164pa.h>
+ 313               	#elif defined (__AVR_ATmega165__)
+ 314               	#  include <avr/iom165.h>
+ 315               	#elif defined (__AVR_ATmega165A__)
+ 316               	#  include <avr/iom165a.h>
+ 317               	#elif defined (__AVR_ATmega165P__)
+ 318               	#  include <avr/iom165p.h>
+ 319               	#elif defined (__AVR_ATmega165PA__)
+ 320               	#  include <avr/iom165pa.h>
+ 321               	#elif defined (__AVR_ATmega168__)
+ 322               	#  include <avr/iom168.h>
+ 323               	#elif defined (__AVR_ATmega168A__)
+ 324               	#  include <avr/iom168a.h>
+ 325               	#elif defined (__AVR_ATmega168P__)
+ 326               	#  include <avr/iom168p.h>
+ 327               	#elif defined (__AVR_ATmega168PA__)
+ 328               	#  include <avr/iom168pa.h>
+ 329               	#elif defined (__AVR_ATmega168PB__)
+ 330               	#  include <avr/iom168pb.h>
+ 331               	#elif defined (__AVR_ATmega169__)
+ 332               	#  include <avr/iom169.h>
+ 333               	#elif (defined __AVR_ATmega169A__)
+ 334               	#include <avr/iom169a.h>
+ 335               	#elif defined (__AVR_ATmega169P__)
+ 336               	#  include <avr/iom169p.h>
+ 337               	#elif defined (__AVR_ATmega169PA__)
+ 338               	#  include <avr/iom169pa.h>
+ 339               	#elif defined (__AVR_ATmega8HVA__)
+ 340               	#  include <avr/iom8hva.h>
+ 341               	#elif defined (__AVR_ATmega16HVA__)
+ 342               	#  include <avr/iom16hva.h>
+ 343               	#elif defined (__AVR_ATmega16HVA2__)
+ 344               	#  include <avr/iom16hva2.h>
+ 345               	#elif defined (__AVR_ATmega16HVB__)
+ 346               	#  include <avr/iom16hvb.h>
+ 347               	#elif defined (__AVR_ATmega16HVBREVB__)
+ 348               	#  include <avr/iom16hvbrevb.h>
+ 349               	#elif defined (__AVR_ATmega8__)
+ 350               	#  include <avr/iom8.h>
+ 351               	#elif defined (__AVR_ATmega8A__)
+ 352               	#  include <avr/iom8a.h>
+ 353               	#elif defined (__AVR_ATmega48__)
+ 354               	#  include <avr/iom48.h>
+ 355               	#elif defined (__AVR_ATmega48A__)
+ 356               	#  include <avr/iom48a.h>
+ 357               	#elif defined (__AVR_ATmega48PA__)
+ 358               	#  include <avr/iom48pa.h>
+ 359               	#elif defined (__AVR_ATmega48PB__)
+ 360               	#  include <avr/iom48pb.h>
+ 361               	#elif defined (__AVR_ATmega48P__)
+ 362               	#  include <avr/iom48p.h>
+ 363               	#elif defined (__AVR_ATmega88__)
+ 364               	#  include <avr/iom88.h>
+ 365               	#elif defined (__AVR_ATmega88A__)
+ 366               	#  include <avr/iom88a.h>
+ 367               	#elif defined (__AVR_ATmega88P__)
+ 368               	#  include <avr/iom88p.h>
+ 369               	#elif defined (__AVR_ATmega88PA__)
+ 370               	#  include <avr/iom88pa.h>
+ 371               	#elif defined (__AVR_ATmega88PB__)
+ 372               	#  include <avr/iom88pb.h>
+ 373               	#elif defined (__AVR_ATmega8515__)
+ 374               	#  include <avr/iom8515.h>
+ 375               	#elif defined (__AVR_ATmega8535__)
+ 376               	#  include <avr/iom8535.h>
+ 377               	#elif defined (__AVR_AT90S8535__)
+ 378               	#  include <avr/io8535.h>
+ 379               	#elif defined (__AVR_AT90C8534__)
+ 380               	#  include <avr/io8534.h>
+ 381               	#elif defined (__AVR_AT90S8515__)
+ 382               	#  include <avr/io8515.h>
+ 383               	#elif defined (__AVR_AT90S4434__)
+ 384               	#  include <avr/io4434.h>
+ 385               	#elif defined (__AVR_AT90S4433__)
+ 386               	#  include <avr/io4433.h>
+ 387               	#elif defined (__AVR_AT90S4414__)
+ 388               	#  include <avr/io4414.h>
+ 389               	#elif defined (__AVR_ATtiny22__)
+ 390               	#  include <avr/iotn22.h>
+ 391               	#elif defined (__AVR_ATtiny26__)
+ 392               	#  include <avr/iotn26.h>
+ 393               	#elif defined (__AVR_AT90S2343__)
+ 394               	#  include <avr/io2343.h>
+ 395               	#elif defined (__AVR_AT90S2333__)
+ 396               	#  include <avr/io2333.h>
+ 397               	#elif defined (__AVR_AT90S2323__)
+ 398               	#  include <avr/io2323.h>
+ 399               	#elif defined (__AVR_AT90S2313__)
+ 400               	#  include <avr/io2313.h>
+ 401               	#elif defined (__AVR_ATtiny4__)
+ 402               	#  include <avr/iotn4.h>
+ 403               	#elif defined (__AVR_ATtiny5__)
+ 404               	#  include <avr/iotn5.h>
+ 405               	#elif defined (__AVR_ATtiny9__)
+ 406               	#  include <avr/iotn9.h>
+ 407               	#elif defined (__AVR_ATtiny10__)
+ 408               	#  include <avr/iotn10.h>
+ 409               	#elif defined (__AVR_ATtiny20__)
+ 410               	#  include <avr/iotn20.h>
+ 411               	#elif defined (__AVR_ATtiny40__)
+ 412               	#  include <avr/iotn40.h>
+ 413               	#elif defined (__AVR_ATtiny2313__)
+ 414               	#  include <avr/iotn2313.h>
+ 415               	#elif defined (__AVR_ATtiny2313A__)
+ 416               	#  include <avr/iotn2313a.h>
+ 417               	#elif defined (__AVR_ATtiny13__)
+ 418               	#  include <avr/iotn13.h>
+ 419               	#elif defined (__AVR_ATtiny13A__)
+ 420               	#  include <avr/iotn13a.h>
+ 421               	#elif defined (__AVR_ATtiny25__)
+ 422               	#  include <avr/iotn25.h>
+ 423               	#elif defined (__AVR_ATtiny4313__)
+ 424               	#  include <avr/iotn4313.h>
+ 425               	#elif defined (__AVR_ATtiny45__)
+ 426               	#  include <avr/iotn45.h>
+ 427               	#elif defined (__AVR_ATtiny85__)
+ 428               	#  include <avr/iotn85.h>
+ 429               	#elif defined (__AVR_ATtiny24__)
+ 430               	#  include <avr/iotn24.h>
+ 431               	#elif defined (__AVR_ATtiny24A__)
+ 432               	#  include <avr/iotn24a.h>
+ 433               	#elif defined (__AVR_ATtiny44__)
+ 434               	#  include <avr/iotn44.h>
+ 435               	#elif defined (__AVR_ATtiny44A__)
+ 436               	#  include <avr/iotn44a.h>
+ 437               	#elif defined (__AVR_ATtiny441__)
+ 438               	#  include <avr/iotn441.h>
+ 439               	#elif defined (__AVR_ATtiny84__)
+ 440               	#  include <avr/iotn84.h>
+ 441               	#elif defined (__AVR_ATtiny84A__)
+ 442               	#  include <avr/iotn84a.h> 
+ 443               	#elif defined (__AVR_ATtiny841__)
+ 444               	#  include <avr/iotn841.h> 
+ 445               	#elif defined (__AVR_ATtiny261__)
+ 446               	#  include <avr/iotn261.h>
+ 447               	#elif defined (__AVR_ATtiny261A__)
+ 448               	#  include <avr/iotn261a.h>
+ 449               	#elif defined (__AVR_ATtiny461__)
+ 450               	#  include <avr/iotn461.h>
+ 451               	#elif defined (__AVR_ATtiny461A__)
+ 452               	#  include <avr/iotn461a.h>
+ 453               	#elif defined (__AVR_ATtiny861__)
+ 454               	#  include <avr/iotn861.h>
+ 455               	#elif defined (__AVR_ATtiny861A__)
+ 456               	#  include <avr/iotn861a.h>
+ 457               	#elif defined (__AVR_ATtiny43U__)
+ 458               	#  include <avr/iotn43u.h>
+ 459               	#elif defined (__AVR_ATtiny48__)
+ 460               	#  include <avr/iotn48.h>
+ 461               	#elif defined (__AVR_ATtiny88__)
+ 462               	#  include <avr/iotn88.h>
+ 463               	#elif defined (__AVR_ATtiny828__)
+ 464               	#  include <avr/iotn828.h>
+ 465               	#elif defined (__AVR_ATtiny87__)
+ 466               	#  include <avr/iotn87.h>
+ 467               	#elif defined (__AVR_ATtiny167__)
+ 468               	#  include <avr/iotn167.h>
+ 469               	#elif defined (__AVR_ATtiny1634__)
+ 470               	#  include <avr/iotn1634.h>
+ 471               	#elif defined (__AVR_AT90SCR100__)
+ 472               	#  include <avr/io90scr100.h>
+ 473               	#elif defined (__AVR_ATxmega8E5__)
+ 474               	#  include <avr/iox8e5.h>
+ 475               	#elif defined (__AVR_ATxmega16A4__)
+ 476               	#  include <avr/iox16a4.h>
+ 477               	#elif defined (__AVR_ATxmega16A4U__)
+ 478               	#  include <avr/iox16a4u.h>
+ 479               	#elif defined (__AVR_ATxmega16C4__)
+ 480               	#  include <avr/iox16c4.h>
+ 481               	#elif defined (__AVR_ATxmega16D4__)
+ 482               	#  include <avr/iox16d4.h>
+ 483               	#elif defined (__AVR_ATxmega16E5__)
+ 484               	#  include <avr/iox16e5.h>
+ 485               	#elif defined (__AVR_ATxmega32A4__)
+ 486               	#  include <avr/iox32a4.h>
+ 487               	#elif defined (__AVR_ATxmega32A4U__)
+ 488               	#  include <avr/iox32a4u.h>
+ 489               	#elif defined (__AVR_ATxmega32C3__)
+ 490               	#  include <avr/iox32c3.h>
+ 491               	#elif defined (__AVR_ATxmega32C4__)
+ 492               	#  include <avr/iox32c4.h>
+ 493               	#elif defined (__AVR_ATxmega32D3__)
+ 494               	#  include <avr/iox32d3.h>
+ 495               	#elif defined (__AVR_ATxmega32D4__)
+ 496               	#  include <avr/iox32d4.h>
+ 497               	#elif defined (__AVR_ATxmega32E5__)
+ 498               	#  include <avr/iox32e5.h>
+ 499               	#elif defined (__AVR_ATxmega64A1__)
+ 500               	#  include <avr/iox64a1.h>
+ 501               	#elif defined (__AVR_ATxmega64A1U__)
+ 502               	#  include <avr/iox64a1u.h>
+ 503               	#elif defined (__AVR_ATxmega64A3__)
+ 504               	#  include <avr/iox64a3.h>
+ 505               	#elif defined (__AVR_ATxmega64A3U__)
+ 506               	#  include <avr/iox64a3u.h>
+ 507               	#elif defined (__AVR_ATxmega64A4U__)
+ 508               	#  include <avr/iox64a4u.h>
+ 509               	#elif defined (__AVR_ATxmega64B1__)
+ 510               	#  include <avr/iox64b1.h>
+ 511               	#elif defined (__AVR_ATxmega64B3__)
+ 512               	#  include <avr/iox64b3.h>
+ 513               	#elif defined (__AVR_ATxmega64C3__)
+ 514               	#  include <avr/iox64c3.h>
+ 515               	#elif defined (__AVR_ATxmega64D3__)
+ 516               	#  include <avr/iox64d3.h>
+ 517               	#elif defined (__AVR_ATxmega64D4__)
+ 518               	#  include <avr/iox64d4.h>
+ 519               	#elif defined (__AVR_ATxmega128A1__)
+ 520               	#  include <avr/iox128a1.h>
+ 521               	#elif defined (__AVR_ATxmega128A1U__)
+ 522               	#  include <avr/iox128a1u.h>
+ 523               	#elif defined (__AVR_ATxmega128A4U__)
+ 524               	#  include <avr/iox128a4u.h>
+ 525               	#elif defined (__AVR_ATxmega128A3__)
+ 526               	#  include <avr/iox128a3.h>
+ 527               	#elif defined (__AVR_ATxmega128A3U__)
+ 528               	#  include <avr/iox128a3u.h>
+ 529               	#elif defined (__AVR_ATxmega128B1__)
+ 530               	#  include <avr/iox128b1.h>
+ 531               	#elif defined (__AVR_ATxmega128B3__)
+ 532               	#  include <avr/iox128b3.h>
+ 533               	#elif defined (__AVR_ATxmega128C3__)
+ 534               	#  include <avr/iox128c3.h>
+ 535               	#elif defined (__AVR_ATxmega128D3__)
+ 536               	#  include <avr/iox128d3.h>
+ 537               	#elif defined (__AVR_ATxmega128D4__)
+ 538               	#  include <avr/iox128d4.h>
+ 539               	#elif defined (__AVR_ATxmega192A3__)
+ 540               	#  include <avr/iox192a3.h>
+ 541               	#elif defined (__AVR_ATxmega192A3U__)
+ 542               	#  include <avr/iox192a3u.h>
+ 543               	#elif defined (__AVR_ATxmega192C3__)
+ 544               	#  include <avr/iox192c3.h>
+ 545               	#elif defined (__AVR_ATxmega192D3__)
+ 546               	#  include <avr/iox192d3.h>
+ 547               	#elif defined (__AVR_ATxmega256A3__)
+ 548               	#  include <avr/iox256a3.h>
+ 549               	#elif defined (__AVR_ATxmega256A3U__)
+ 550               	#  include <avr/iox256a3u.h>
+ 551               	#elif defined (__AVR_ATxmega256A3B__)
+ 552               	#  include <avr/iox256a3b.h>
+ 553               	#elif defined (__AVR_ATxmega256A3BU__)
+ 554               	#  include <avr/iox256a3bu.h>
+ 555               	#elif defined (__AVR_ATxmega256C3__)
+ 556               	#  include <avr/iox256c3.h>
+ 557               	#elif defined (__AVR_ATxmega256D3__)
+ 558               	#  include <avr/iox256d3.h>
+ 559               	#elif defined (__AVR_ATxmega384C3__)
+ 560               	#  include <avr/iox384c3.h>
+ 561               	#elif defined (__AVR_ATxmega384D3__)
+ 562               	#  include <avr/iox384d3.h>
+ 563               	#elif defined (__AVR_ATA5702M322__)
+ 564               	#  include <avr/ioa5702m322.h>
+ 565               	#elif defined (__AVR_ATA5782__)
+ 566               	#  include <avr/ioa5782.h>
+ 567               	#elif defined (__AVR_ATA5790__)
+ 568               	#  include <avr/ioa5790.h>
+ 569               	#elif defined (__AVR_ATA5790N__)
+ 570               	#  include <avr/ioa5790n.h>
+ 571               	#elif defined (__AVR_ATA5791__)
+ 572               	#  include <avr/ioa5791.h>
+ 573               	#elif defined (__AVR_ATA5831__)
+ 574               	#  include <avr/ioa5831.h>
+ 575               	#elif defined (__AVR_ATA5272__)
+ 576               	#  include <avr/ioa5272.h>
+ 577               	#elif defined (__AVR_ATA5505__)
+ 578               	#  include <avr/ioa5505.h>
+ 579               	#elif defined (__AVR_ATA5795__)
+ 580               	#  include <avr/ioa5795.h>
+ 581               	#elif defined (__AVR_ATA6285__)
+ 582               	#  include <avr/ioa6285.h>
+ 583               	#elif defined (__AVR_ATA6286__)
+ 584               	#  include <avr/ioa6286.h>
+ 585               	#elif defined (__AVR_ATA6289__)
+ 586               	#  include <avr/ioa6289.h>
+ 587               	#elif defined (__AVR_ATA6612C__)
+ 588               	#  include <avr/ioa6612c.h>
+ 589               	#elif defined (__AVR_ATA6613C__)
+ 590               	#  include <avr/ioa6613c.h>
+ 591               	#elif defined (__AVR_ATA6614Q__)
+ 592               	#  include <avr/ioa6614q.h>
+ 593               	#elif defined (__AVR_ATA6616C__)
+ 594               	#  include <avr/ioa6616c.h>
+ 595               	#elif defined (__AVR_ATA6617C__)
+ 596               	#  include <avr/ioa6617c.h>
+ 597               	#elif defined (__AVR_ATA664251__)
+ 598               	#  include <avr/ioa664251.h>
+ 599               	#elif defined (__AVR_ATA8210__)
+ 600               	#  include <avr/ioa8210.h>
+ 601               	#elif defined (__AVR_ATA8510__)
+ 602               	#  include <avr/ioa8510.h>
+ 603               	/* avr1: the following only supported for assembler programs */
+ 604               	#elif defined (__AVR_ATtiny28__)
+ 605               	#  include <avr/iotn28.h>
+ 606               	#elif defined (__AVR_AT90S1200__)
+ 607               	#  include <avr/io1200.h>
+ 608               	#elif defined (__AVR_ATtiny15__)
+ 609               	#  include <avr/iotn15.h>
+ 610               	#elif defined (__AVR_ATtiny12__)
+ 611               	#  include <avr/iotn12.h>
+ 612               	#elif defined (__AVR_ATtiny11__)
+ 613               	#  include <avr/iotn11.h>
+ 614               	#elif defined (__AVR_M3000__)
+ 615               	#  include <avr/iom3000.h>
+ 616               	#elif defined (__AVR_DEV_LIB_NAME__)
+ 617               	#  define __concat__(a,b) a##b
+ 618               	#  define __header1__(a,b) __concat__(a,b)
+ 619               	#  define __AVR_DEVICE_HEADER__ <avr/__header1__(io,__AVR_DEV_LIB_NAME__).h>
+ 620               	#  include __AVR_DEVICE_HEADER__
+ 621               	#else
+ 622               	#  if !defined(__COMPILING_AVR_LIBC__)
+ 623               	#    warning "device type not defined"
+ 624               	#  endif
+ 625               	#endif
+ 626               	
+ 627               	#include <avr/portpins.h>
+   1               	/* Copyright (c) 2003  Theodore A. Roth
+ 628               	
+ 629               	#include <avr/common.h>
+   1               	/* Copyright (c) 2007 Eric B. Weddington
+ 630               	
+ 631               	#include <avr/version.h>
+   1               	/* Copyright (c) 2005, Joerg Wunsch                               -*- c -*-
+ 632               	
+ 633               	#if __AVR_ARCH__ >= 100
+ 634               	#  include <avr/xmega.h>
+ 635               	#endif
+ 636               	
+ 637               	/* Include fuse.h after individual IO header files. */
+ 638               	#include <avr/fuse.h>
+   1               	/* Copyright (c) 2007, Atmel Corporation
+ 639               	
+ 640               	/* Include lock.h after individual IO header files. */
+ 641               	#include <avr/lock.h>
+   1               	/* Copyright (c) 2007, Atmel Corporation
+ 642               	
+  46               	
+  21               	
+ 153               	
+ 154               	;-------------------------------------------------------------------------------
+ 155               	;*******************************************************************************
+ 156               	;-------------------------------------------------------------------------------
+ 157               	
+ 158               	#define	temp0		r21
+ 159               	#define	temp1		r20
+ 160               	#define	temp2		r19
+ 161               	#define	temp3		r18
+ 162               	
+ 163               	#define	XL		r26
+ 164               	#define	XH		r27
+ 165               	
+ 166               	#define nop2		rjmp	.+0	/* jump to next instruction */
+ 167               	
+ 168               	#if F_CPU == 16000000UL
+ 169               	 #define TRGWAIT	lo8((48*(16000000/1000000))/3)
+ 170               	#endif
+ 171               	
+ 172               	;-------------------------------------------------------------------------------
+ 173               	;*******************************************************************************
+ 174               	;-------------------------------------------------------------------------------
+ 175               	
+ 176               		.section	.bss,"aw",@nobits
+ 177               	
+ 178               		.global sw_idbuf
+ 179               		.global sw_packet3
+ 180               		.global sw_packet2
+ 181               		.global sw_packet1
+ 182               		.global ffp_packet
+ 183               	
+ 184               		.global sw_pktptr
+ 185               		.global sw_clkcnt
+ 186               	
+ 187 0000 00        		.skip 1,0
+ 188               	
+ 189               	sw_idbuf:
+ 190 0001 0000 0000 	        .skip 60,0
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 190      0000 0000 
+ 191               	
+ 192               	sw_packet3:				; SideWinder 3D Pro packet buffers
+ 193 003d 0000 0000 	        .skip 8,0
+ 193      0000 0000 
+ 194               	
+ 195               	sw_packet2:
+ 196 0045 0000 0000 	        .skip 8,0
+ 196      0000 0000 
+ 197               	
+ 198               	sw_packet1:
+ 199 004d 0000      	        .skip 2,0
+ 200               	
+ 201               	ffp_packet:
+ 202 004f 0000 0000 	        .skip 6,0
+ 202      0000 
+ 203               	sw_pktstart:
+ 204               	
+ 205               	sw_pktptr:				; -> to current byte in buffer
+ 206               	sw_pktptrL:
+ 207 0055 00        		.skip 1,0
+ 208               	sw_pktptrH:
+ 209 0056 00        		.skip 1,0
+ 210               	
+ 211               	sw_clkcnt:				; no. of clock ticks on B1
+ 212 0057 00        		.skip 1,0
+ 213               	
+ 214               	;-------------------------------------------------------------------------------
+ 215               	;*******************************************************************************
+ 216               	;-------------------------------------------------------------------------------
+ 217               	
+ 218               		.text
+ 219               	
+ 220               	;-------------------------------------------------------------------------------
+ 221               	;*******************************************************************************
+ 222               	;	Receive, decode, and store a triplet from the 3DPro, PP, or FFP
+ 223               	;-------------------------------------------------------------------------------
+ 224               	
+ 225               		.global INT0_vect
+ 226               	
+ 227               	INT0_vect:
+ 228:3DProasm.S    **** 	push	temp0			; Save temp0				2		+2
+ 229:3DProasm.S    **** 	in      temp0,SREG		; Save S register			1
+ 230:3DProasm.S    **** 	push	temp0			; Save SREG				2
+ 231               	
+ 232:3DProasm.S    **** 	ldi	temp0,T6TO100US		; 					1
+ 233:3DProasm.S    **** 	out	TCNT0,temp0		; Reset timeout timer			1
+ 234               	
+ 235:3DProasm.S    **** 	push	temp1			; Save temp1				2
+ 236:3DProasm.S    **** 	push	XL			; Save XL				2
+ 237:3DProasm.S    **** 	push	XH			; Save XH				2		+4
+ 238               	
+ 239:3DProasm.S    **** 	lds	XH,sw_pktptrH		; Load buffer pointer H			2		+5
+ 240:3DProasm.S    **** 	lds	XL,sw_pktptrL		; Load buffer pointer L			2	+4
+ 241               	
+ 242:3DProasm.S    **** 	lds	temp0,sw_clkcnt		; Load clkcnt				2		+6
+ 243:3DProasm.S    **** 	mov	temp1,temp0		;					1		+7
+ 244               	
+ 245:3DProasm.S    **** 	inc	temp0			; Maintain clkcnt			1
+ 246:3DProasm.S    **** 	sts	sw_clkcnt,temp0		; Save new clkcnt			2		+9
+ 247               	
+ 248:3DProasm.S    **** 	in	temp0,BUTPIN		; Read the button data			1
+ 249:3DProasm.S    **** 	swap	temp0			; AT90USBX2				1
+ 250:3DProasm.S    **** 	andi	temp0,0b11100000	; Mask B4-B2				1
+ 251               	
+ 252:3DProasm.S    **** 	andi	temp1,7			;					1	12+	01234567
+ 253:3DProasm.S    **** 	breq	I0case0			;					1/2		21111111
+ 254:3DProasm.S    **** 	cpi	temp1,5			;					1		 1111111
+ 255:3DProasm.S    **** 	breq	I0case5			;					1/2		 1111211
+ 256:3DProasm.S    **** 	cpi	temp1,2			;					1		 1111 11
+ 257:3DProasm.S    **** 	breq	I0case2			;					1/2		 1211 11
+ 258:3DProasm.S    **** 	cpi	temp1,3			;					1		 1 11 11
+ 259:3DProasm.S    **** 	breq	I0case3			;					1/2		 1 21 11
+ 260:3DProasm.S    **** 	cpi	temp1,6			;					1		 1  1 11
+ 261:3DProasm.S    **** 	breq	I0case6			;					1/2		 1  1 21
+ 262:3DProasm.S    **** 	cpi	temp1,1			;					1		 1  1  1
+ 263:3DProasm.S    **** 	breq	I0case1			;					1/2		 2  1  1
+ 264:3DProasm.S    **** 	cpi	temp1,4			;					1		    1  1
+ 265:3DProasm.S    **** 	breq	I0case4			;					1/2		    2  1
+ 266:3DProasm.S    **** 	rjmp	I0case7			;					2		       2
+ 267               						;							 1  1 11
+ 268               						;							22684405
+ 269               	I0case0:
+ 270:3DProasm.S    **** 	swap	temp0			; move b7-b5 (B4-B3) to b2-b0		1
+ 271:3DProasm.S    **** 	lsr	temp0			;					1 -2
+ 272               	
+ 273:3DProasm.S    **** 	st	-X,temp0		; Store it				2
+ 274               	
+ 275:3DProasm.S    **** 	rjmp	Int0End			;					2		8+2=10 +21=31
+ 276               	
+ 277               	I0case2:
+ 278:3DProasm.S    **** 	lsl	temp0			; store b7 in C, b6-b5 to b7-b6		1
+ 279               	
+ 280:3DProasm.S    **** 	ld	temp1,X			; Get current byte			2
+ 281:3DProasm.S    **** 	or	temp0,temp1		;					1
+ 282:3DProasm.S    **** 	st	X,temp0			; Save to buffer			2
+ 283               	
+ 284:3DProasm.S    **** 	clr	temp0			;					1
+ 285:3DProasm.S    **** 	rol	temp0			; b7 to b0				1
+ 286:3DProasm.S    **** 	st	-X,temp0		; Save to buffer			2
+ 287               	
+ 288:3DProasm.S    **** 	rjmp	Int0End			;					2		  12+6=18 +21=39
+ 289               	
+ 290               	I0case5:
+ 291:3DProasm.S    **** 	bst	temp0,7			; store b7 in T				1
+ 292:3DProasm.S    **** 	lsl	temp0			; drop b7				1
+ 293:3DProasm.S    **** 	lsl	temp0			; store b6 in C, b5 to b7		1
+ 294               	
+ 295:3DProasm.S    **** 	ld	temp1,X			; Get current byte			2
+ 296:3DProasm.S    **** 	or	temp0,temp1		;					1
+ 297:3DProasm.S    **** 	st	X,temp0			; Save to buffer			2
+ 298               	
+ 299:3DProasm.S    **** 	clr	temp0			;					1
+ 300:3DProasm.S    **** 	rol	temp0			; b6 to b0				1
+ 301:3DProasm.S    **** 	bld	temp0,1			; b7 to b1				1
+ 302:3DProasm.S    **** 	st	-X,temp0		; Save to buffer			2
+ 303               	
+ 304:3DProasm.S    **** 	rjmp	Int0End			;					2		     15+4=19 +21=40
+ 305               	
+ 306               	I0case3:				; b7-b5 to b3-b1					   9+8=17 +21=38
+ 307:3DProasm.S    **** 	lsr	temp0			;					1
+ 308               	I0case6:				; b7-b5 to b4-b2					      8+10=18 +21=39
+ 309:3DProasm.S    **** 	lsr	temp0			;					1
+ 310               	I0case1:				; b7-b5 to b5-b3					 7+12=19 +21=40
+ 311:3DProasm.S    **** 	lsr	temp0			;					1
+ 312               	I0case4:				; b7-b5 to b6-b4					    6+14=20 +21=41
+ 313:3DProasm.S    **** 	lsr	temp0			;					1
+ 314               	I0case7:				; b7-b5 are right					       5+15=20 +21=41
+ 315:3DProasm.S    **** 	ld	temp1,X			; Get current byte			2
+ 316:3DProasm.S    **** 	or	temp0,temp1		;					1
+ 317:3DProasm.S    **** 	st	X,temp0			; Save to buffer			2
+ 318               	
+ 319               	Int0End:
+ 320:3DProasm.S    **** 	sts	sw_pktptrL,XL		; Save buffer pointer L			2
+ 321:3DProasm.S    **** 	sts	sw_pktptrH,XH		; Save buffer pointer H			2
+ 322               	
+ 323:3DProasm.S    **** 	pop	XH			; Restore XH				2		+11
+ 324:3DProasm.S    **** 	pop	XL			; Restore XL				2	+4
+ 325:3DProasm.S    **** 	pop	temp1			; Restore temp1				2
+ 326               	
+ 327:3DProasm.S    **** 	pop	temp0			; Restore SREG				2
+ 328:3DProasm.S    **** 	out	SREG,temp0		; Restore S register			1
+ 329               	
+ 330:3DProasm.S    **** 	pop	temp0			; Restore temp0				2		+13
+ 331:3DProasm.S    **** 	reti				;					4	9+
+ 332               	
+ 333               	;-------------------------------------------------------------------------------
+ 334               	;*******************************************************************************
+ 335               	;	Decode the raw FFP/PP data and store it into sw_report
+ 336               	;
+ 337               	; Input:
+ 338               	;	Pointer to start of packet to copy
+ 339               	;
+ 340               	;	FFP/PP data packet structure
+ 341               	;	============================
+ 342               	;
+ 343               	;	44444444 33333333 33222222 22221111 11111100 00000000
+ 344               	;	76543210 98765432 10987654 32109876 54321098 76543210
+ 345               	;	-------0 -------1 -------2 -------3 -------4 -------5
+ 346               	;	ppHHHHRR RRRRTTTT TTTYYYYY YYYYYXXX XXXXXXXB BBBBBBBB
+ 347               	;	  321054 32106543 21098765 43210987 65432109 87654321
+ 348               	;
+ 349               	;	USB report data structure
+ 350               	;	=========================
+ 351               	;
+ 352               	;	-------0 -------1 -------2 -------3 -------4 -------5
+ 353               	;	XXXXXXXX YYYYYYXX HHHHYYYY BBRRRRRR TBBBBBBB 00TTTTTT
+ 354               	;	76543210 54321098 32109876 21543210 09876543   654321
+ 355               	;
+ 356               	;-------------------------------------------------------------------------------
+ 357               	
+ 358               	#define	argPtrL		r24
+ 359               	#define	argPtrH		r25
+ 360               	
+ 361               		.global CopyFFPData
+ 362               	
+ 363               	CopyFFPData:
+ 364:3DProasm.S    **** 	movw	XL,argPtrL
+ 365               	
+ 366               		; X
+ 367               	
+ 368:3DProasm.S    **** 	ldi	temp0,4
+ 369:3DProasm.S    **** 	add	XL,temp0
+ 370               	
+ 371:3DProasm.S    **** 	ld	temp0,X			; xl:6543210-
+ 372               	
+ 373:3DProasm.S    **** 	com	temp0
+ 374:3DProasm.S    **** 	bst	temp0,0			;  b:9
+ 375:3DProasm.S    **** 	com	temp0
+ 376               	
+ 377:3DProasm.S    **** 	subi	XL,1
+ 378:3DProasm.S    **** 	ld	temp2,X			; xh:-----987
+ 379               	
+ 380:3DProasm.S    **** 	lsr	temp2			; xh:------98 [7]
+ 381:3DProasm.S    **** 	ror	temp0			; xl:76543210
+ 382               	
+ 383:3DProasm.S    **** 	sts	sw_report,temp0
+ 384               	
+ 385:3DProasm.S    **** 	ldi	temp1,0b00000010
+ 386:3DProasm.S    **** 	add	temp2,temp1		; Add -512
+ 387:3DProasm.S    **** 	andi	temp2,0b00000011	; xh:------98
+ 388               	
+ 389               		; Y
+ 390               	
+ 391:3DProasm.S    **** 	ld	temp0,X			; yl:43210---
+ 392               	
+ 393:3DProasm.S    **** 	subi	XL,1
+ 394:3DProasm.S    **** 	ld	temp1,X			; yh:---98765
+ 395               	
+ 396:3DProasm.S    **** 	lsr	temp1			; yh:----9876 [5]
+ 397:3DProasm.S    **** 	ror	temp0			; yl:543210--
+ 398               	
+ 399:3DProasm.S    **** 	andi	temp0,0b11111100
+ 400               	
+ 401:3DProasm.S    **** 	or	temp0,temp2
+ 402               	
+ 403:3DProasm.S    **** 	sts	sw_report+1,temp0
+ 404               	
+ 405:3DProasm.S    **** 	ldi	temp2,0b00001000
+ 406:3DProasm.S    **** 	add	temp1,temp2		; Add -512
+ 407:3DProasm.S    **** 	andi	temp1,0b00001111	; yh:----9876
+ 408               	
+ 409               		; Hat
+ 410               	
+ 411:3DProasm.S    **** 	subi	XL,2
+ 412:3DProasm.S    **** 	ld	temp0,X			;  h:--3210--
+ 413               	
+ 414:3DProasm.S    **** 	lsl	temp0			;  h:-3210---
+ 415:3DProasm.S    **** 	lsl	temp0			;  h:3210----
+ 416:3DProasm.S    **** 	subi	temp0,0x10		; -1
+ 417:3DProasm.S    **** 	andi	temp0,0b11110000
+ 418               	
+ 419:3DProasm.S    **** 	or	temp0,temp1
+ 420               	
+ 421:3DProasm.S    **** 	sts	sw_report+2,temp0
+ 422               	
+ 423               		; Rz
+ 424               	
+ 425:3DProasm.S    **** 	ld	temp2,X			; rh:------54
+ 426               	
+ 427:3DProasm.S    **** 	ldi	temp1,0b00000010
+ 428:3DProasm.S    **** 	add	temp2,temp1		; Add -32
+ 429:3DProasm.S    **** 	andi	temp2,0b00000011
+ 430               	
+ 431:3DProasm.S    **** 	inc	XL
+ 432               	
+ 433:3DProasm.S    **** 	ld	temp1,X			; rl:3210----
+ 434:3DProasm.S    **** 	andi	temp1,0b11110000
+ 435               	
+ 436:3DProasm.S    **** 	or	temp2,temp1		;  r:3210--54
+ 437:3DProasm.S    **** 	swap	temp2			;  r:--543210
+ 438:3DProasm.S    **** 	lsl	temp2			;  r:-543210-
+ 439:3DProasm.S    **** 	lsl	temp2			;  r:543210--
+ 440               	
+ 441               		; B1-9
+ 442               	
+ 443:3DProasm.S    **** 	ldi	temp0,4
+ 444:3DProasm.S    **** 	add	XL,temp0
+ 445:3DProasm.S    **** 	ld	temp0,X			;  b:87654321
+ 446               	
+ 447:3DProasm.S    **** 	com	temp0
+ 448               	
+ 449:3DProasm.S    **** 	lsr	temp0			;  b:-8765432 [1]
+ 450:3DProasm.S    **** 	ror	temp2			;  r:1543210-
+ 451:3DProasm.S    **** 	lsr	temp0			;  b:--876543 [2]
+ 452:3DProasm.S    **** 	ror	temp2			;  r:21543210
+ 453               	
+ 454:3DProasm.S    **** 	sts	sw_report+3,temp2
+ 455               	
+ 456:3DProasm.S    **** 	bld	temp0,6			;  b:-9876543
+ 457               	
+ 458               		; Throttle
+ 459               	
+ 460:3DProasm.S    **** 	subi	XL,3
+ 461:3DProasm.S    **** 	ld	temp1,X			; tl:210-----
+ 462               	
+ 463:3DProasm.S    **** 	bst	temp1,5
+ 464:3DProasm.S    **** 	bld	temp0,7			;  b:09876543
+ 465               	
+ 466:3DProasm.S    **** 	sts	sw_report+4,temp0
+ 467               	
+ 468:3DProasm.S    **** 	subi	XL,1
+ 469:3DProasm.S    **** 	ld	temp0,X			; th:----6543
+ 470               	
+ 471:3DProasm.S    **** 	ldi	temp2,0b00001000
+ 472:3DProasm.S    **** 	add	temp0,temp2		; Add -64
+ 473:3DProasm.S    **** 	andi	temp0,0b00001111
+ 474               	
+ 475:3DProasm.S    **** 	lsl	temp1			; tl:1------- [2]
+ 476:3DProasm.S    **** 	rol	temp0			; th:---65432
+ 477:3DProasm.S    **** 	lsl	temp1			; tl:-------- [1]
+ 478:3DProasm.S    **** 	rol	temp0			; th:--654321
+ 479               	
+ 480:3DProasm.S    **** 	sts	sw_report+5,temp0
+ 481               	
+ 482:3DProasm.S    **** 	ret
+ 483               	
+ 484               	#if SIXAXIS
+ 485               	
+ 486               	;-------------------------------------------------------------------------------
+ 487               	;*******************************************************************************
+ 488               	;	Decode the raw 3DPro data and store it into sw_report
+ 489               	;
+ 490               	; Input:
+ 491               	;	Pointer to start of packet to copy
+ 492               	;
+ 493               	;	3D Pro data packet structure
+ 494               	;	============================
+ 495               	;
+ 496               	;	0   **** 0        0        0        0        0        0        1
+ 497               	;	66665555 55555544 44444444 33333333 33222222 22221111 11111100 00000000
+ 498               	;	32109876 54321098 76543210 98765432 10987654 32109876 54321098 76543210
+ 499               	;	-------0 -------1 -------2 -------3 -------4 -------5 -------6 -------7
+ 500               	;	sHHHcccc sTTTTTTT sRRRRRRR sBBRRTTT sYYYYYYY sXXXXXXX sBBBBBBB sHXXXYYY
+ 501               	;	 210      6543210  6543210  8987987  6543210  6543210  7654321  3987987
+ 502               	;
+ 503               	;	USB report data structure
+ 504               	;	=========================
+ 505               	;
+ 506               	;	-------0 -------1 -------2 -------3 -------4 -------5 -------6 -------7
+ 507               	;	XXXXXXXX YYYYYYXX xxxxYYYY yyyyxxxx RRRRyyyy BBBRRRRR TTTBBBBB 0TTTTTTT
+ 508               	;	76543210 54321098 32109876 32107654 32107654 32187654 21087654  9876543
+ 509               	;
+ 510               	;-------------------------------------------------------------------------------
+ 511               	
+ 512               		.global Copy3DPData
+ 513               	
+ 514               	Copy3DPData:
+ 515               		movw	XL,argPtrL
+ 516               	
+ 517               		; Get X
+ 518               	
+ 519               		ldi	temp1,5
+ 520               		add	XL,temp1
+ 521               	
+ 522               		ld	temp0,X			; xl:-6543210
+ 523               	
+ 524               		inc	XL
+ 525               		inc	XL
+ 526               	
+ 527               		ld	temp2,X
+ 528               		andi	temp2,0b00111000	; xh:--987---
+ 529               	
+ 530               		lsl	temp2			; xh:-987----
+ 531               		swap	temp2			; xh:-----987
+ 532               		lsl	temp0			; xl:6543210-
+ 533               		lsr	temp2			; xh:------98 [7]
+ 534               		ror	temp0			; xl:76543210
+ 535               	
+ 536               		ldi	temp1,0xFE
+ 537               		add	temp2,temp1		; Add -512
+ 538               		andi	temp2,0b00000011	; xh:------98
+ 539               	
+ 540               		sts	sw_report,temp0
+ 541               	
+ 542               		; Y
+ 543               	
+ 544               		ld	temp1,X
+ 545               		andi	temp1,0b00000111	; yh:-----987
+ 546               	
+ 547               		subi	XL,3
+ 548               	
+ 549               		ld	temp0,X			; yl:-6543210
+ 550               	
+ 551               		lsl	temp0			; yl:6543210-
+ 552               		lsr	temp1			; yh:------98 [7]
+ 553               		ror	temp0			; yl:76543210
+ 554               	
+ 555               		ldi	temp3,0xFE
+ 556               		add	temp1,temp3		; Add -512
+ 557               		andi	temp1,0b00000011	; yh:------98
+ 558               	
+ 559               		lsl	temp0			; yl:6543210-
+ 560               		rol	temp1			; yh:-----987
+ 561               		lsl	temp0			; yl:543210--
+ 562               		rol	temp1			; yh:----9876
+ 563               		or	temp0,temp2
+ 564               	
+ 565               		sts	sw_report+1,temp0
+ 566               	
+ 567               		; x,y patched elsewhere
+ 568               	
+ 569               		lds	temp0,sw_report+2
+ 570               		andi	temp0,0b11110000	;xl:3210----
+ 571               		or	temp0,temp1		;yh:++++9876
+ 572               		sts	sw_report+2,temp0
+ 573               	
+ 574               		; Rz
+ 575               	
+ 576               		subi	XL,2
+ 577               	
+ 578               		ld	temp0,X			; rl:-6543210
+ 579               		swap	temp0			; rl:3210-654
+ 580               		mov	temp1,temp0
+ 581               	
+ 582               		andi	temp1,0b11110000
+ 583               		andi	temp0,0b00000111
+ 584               	
+ 585               		lds	temp2,sw_report+4	; yh:----7654
+ 586               		andi	temp2,0b00001111
+ 587               		or	temp2,temp1		; rl:3210++++
+ 588               		sts	sw_report+4,temp2
+ 589               	
+ 590               		inc	XL
+ 591               	
+ 592               		ld	temp1,X
+ 593               		bst	temp1,6			;  b:-8------
+ 594               	
+ 595               		ldi	temp3,0b00000100
+ 596               		add	temp3,temp1
+ 597               		andi	temp3,0b00000111	;  t:-----987
+ 598               		swap	temp3			;  t:-987----
+ 599               	
+ 600               		ldi	temp2,0b00010000
+ 601               		add	temp1,temp2
+ 602               		andi	temp1,0b00011000	; rh:---87---
+ 603               		or	temp1,temp0		; rh:---87654
+ 604               	
+ 605               		; Buttons 1-8, Throttle
+ 606               	
+ 607               		inc	XL
+ 608               		inc	XL
+ 609               		inc	XL
+ 610               	
+ 611               		ld	temp0,X			;  b:-7654321
+ 612               	
+ 613               		mov	temp2,temp0
+ 614               		lsl	temp2
+ 615               		swap	temp2			;  b:----7654
+ 616               		bld	temp2,4			;  b:---87654
+ 617               		com	temp2
+ 618               		andi	temp2,0b00011111
+ 619               	
+ 620               		swap	temp0
+ 621               		lsl	temp0			;  b:321-----
+ 622               		com	temp0
+ 623               		andi	temp0,0b11100000
+ 624               	
+ 625               		or	temp0,temp1
+ 626               		sts	sw_report+5,temp0
+ 627               	
+ 628               		subi	XL,5
+ 629               	
+ 630               		ld	temp0,X			;  t:-6543210
+ 631               		mov	temp1,temp0
+ 632               	
+ 633               		andi	temp0,0b00000111
+ 634               		swap	temp0
+ 635               		lsl	temp0			;  t:210-----
+ 636               	
+ 637               		or	temp0,temp2
+ 638               		sts	sw_report+6,temp0
+ 639               	
+ 640               		andi	temp1,0b01111000	;  t:-6543---
+ 641               		lsl	temp1
+ 642               		swap	temp1			;  t:----6543
+ 643               	
+ 644               		or	temp1,temp3		;  t:-9876543
+ 645               		sts	sw_report+7,temp1
+ 646               	
+ 647               		ret
+ 648               	
+ 649               	#else // ! SIXAXIS
+ 650               	
+ 651               	;-------------------------------------------------------------------------------
+ 652               	;*******************************************************************************
+ 653               	;	Decode the raw 3DPro data and store it into sw_report
+ 654               	;
+ 655               	; Input:
+ 656               	;	Pointer to start of packet to copy
+ 657               	;
+ 658               	;	3D Pro data packet structure
+ 659               	;	============================
+ 660               	;
+ 661               	;	0   **** 0        0        0        0        0        0        1
+ 662               	;	66665555 55555544 44444444 33333333 33222222 22221111 11111100 00000000
+ 663               	;	32109876 54321098 76543210 98765432 10987654 32109876 54321098 76543210
+ 664               	;	-------0 -------1 -------2 -------3 -------4 -------5 -------6 -------7
+ 665               	;	sHHHcccc sTTTTTTT sRRRRRRR sBBRRTTT sYYYYYYY sXXXXXXX sBBBBBBB sHXXXYYY
+ 666               	;	 210      6543210  6543210  8987987  6543210  6543210  7654321  3987987
+ 667               	;
+ 668               	;	USB report data structure
+ 669               	;	=========================
+ 670               	;
+ 671               	;	-------0 -------1 -------2 -------3 -------4 -------5 -------6
+ 672               	;	XXXXXXXX YYYYYYXX RRRRYYYY HHHRRRRR BBBBBBBH TTTTTTTB 00000TTT
+ 673               	;	76543210 54321098 32109876 21087654 76543213 65432108      987
+ 674               	;
+ 675               	;-------------------------------------------------------------------------------
+ 676               	
+ 677               		.global Copy3DPData
+ 678               	
+ 679               	Copy3DPData:
+ 680:3DProasm.S    **** 	movw	XL,argPtrL
+ 681               	
+ 682               		; Get X
+ 683               	
+ 684:3DProasm.S    **** 	ldi	temp1,5
+ 685:3DProasm.S    **** 	add	XL,temp1
+ 686               	
+ 687:3DProasm.S    **** 	ld	temp0,X			; xl:-6543210
+ 688               	
+ 689:3DProasm.S    **** 	inc	XL
+ 690:3DProasm.S    **** 	inc	XL
+ 691               	
+ 692:3DProasm.S    **** 	ld	temp2,X
+ 693:3DProasm.S    **** 	andi	temp2,0b00111000	; xh:--987---
+ 694               	
+ 695:3DProasm.S    **** 	lsl	temp2			; xh:-987----
+ 696:3DProasm.S    **** 	swap	temp2			; xh:-----987
+ 697:3DProasm.S    **** 	lsl	temp0			; xl:6543210-
+ 698:3DProasm.S    **** 	lsr	temp2			; xh:------98 [7]
+ 699:3DProasm.S    **** 	ror	temp0			; xl:76543210
+ 700               	
+ 701:3DProasm.S    **** 	ldi	temp1,0xFE
+ 702:3DProasm.S    **** 	add	temp2,temp1		; Add -512
+ 703:3DProasm.S    **** 	andi	temp2,0b00000011	; xh:------98
+ 704               	
+ 705:3DProasm.S    **** 	sts	sw_report,temp0
+ 706               	
+ 707               		; Y
+ 708               	
+ 709:3DProasm.S    **** 	ld	temp1,X
+ 710:3DProasm.S    **** 	andi	temp1,0b00000111	; yh:-----987
+ 711               	
+ 712:3DProasm.S    **** 	subi	XL,3
+ 713               	
+ 714:3DProasm.S    **** 	ld	temp0,X			; yl:-6543210
+ 715               	
+ 716:3DProasm.S    **** 	lsl	temp0			; yl:6543210-
+ 717:3DProasm.S    **** 	lsr	temp1			; yh:------98 [7]
+ 718:3DProasm.S    **** 	ror	temp0			; yl:76543210
+ 719               	
+ 720:3DProasm.S    **** 	ldi	temp3,0xFE
+ 721:3DProasm.S    **** 	add	temp1,temp3		; Add -512
+ 722:3DProasm.S    **** 	andi	temp1,0b00000011	; yh:------98
+ 723               	
+ 724:3DProasm.S    **** 	lsl	temp0			; yl:6543210-
+ 725:3DProasm.S    **** 	rol	temp1			; yh:-----987
+ 726:3DProasm.S    **** 	lsl	temp0			; yl:543210--
+ 727:3DProasm.S    **** 	rol	temp1			; yh:----8976
+ 728:3DProasm.S    **** 	or	temp0,temp2
+ 729               	
+ 730:3DProasm.S    **** 	sts	sw_report+1,temp0
+ 731:3DProasm.S    **** 	mov	temp2,temp1
+ 732               	
+ 733               		; Rz
+ 734               	
+ 735:3DProasm.S    **** 	subi	XL,2
+ 736               	
+ 737:3DProasm.S    **** 	ld	temp0,X			; rl:-6543210
+ 738               	
+ 739:3DProasm.S    **** 	inc	XL
+ 740               	
+ 741:3DProasm.S    **** 	ld	temp1,X
+ 742:3DProasm.S    **** 	andi	temp1,0b00011000	; rh:---87---
+ 743               	
+ 744:3DProasm.S    **** 	lsl	temp0			; rl:6543210-
+ 745:3DProasm.S    **** 	lsl	temp1			; rh:--87----
+ 746:3DProasm.S    **** 	swap	temp1			; rh:------87
+ 747:3DProasm.S    **** 	lsr	temp1			; rh:-------8 [7]
+ 748:3DProasm.S    **** 	ror	temp0			; rl:76543210
+ 749               	
+ 750:3DProasm.S    **** 	com	temp1			; Add -256
+ 751:3DProasm.S    **** 	bst	temp1,0
+ 752               	
+ 753:3DProasm.S    **** 	swap	temp0			; rl:32107654
+ 754:3DProasm.S    **** 	mov	temp1,temp0
+ 755:3DProasm.S    **** 	andi	temp1,0b11110000	; rl:3210----
+ 756:3DProasm.S    **** 	or	temp1,temp2
+ 757               	
+ 758:3DProasm.S    **** 	sts	sw_report+2,temp1
+ 759:3DProasm.S    **** 	andi	temp0,0b00001111	; rh:----7654
+ 760:3DProasm.S    **** 	bld	temp0,4			; rh:---87654
+ 761:3DProasm.S    **** 	mov	temp2,temp0
+ 762               	
+ 763               		;  Hat
+ 764               	
+ 765:3DProasm.S    **** 	subi	XL,3
+ 766               	
+ 767:3DProasm.S    **** 	ld	temp0,X
+ 768:3DProasm.S    **** 	andi	temp0,0b01110000	; h:-210----
+ 769               	
+ 770:3DProasm.S    **** 	ldi	temp1,7
+ 771:3DProasm.S    **** 	add	XL,temp1
+ 772               	
+ 773:3DProasm.S    **** 	ld	temp1,X			; h:-3------
+ 774               	
+ 775:3DProasm.S    **** 	bst	temp1,6
+ 776:3DProasm.S    **** 	bld	temp0,7			; h:3210----
+ 777:3DProasm.S    **** 	subi	temp0,0x10
+ 778               	
+ 779:3DProasm.S    **** 	bst	temp0,7
+ 780:3DProasm.S    **** 	lsl	temp0			; h:210-----
+ 781:3DProasm.S    **** 	or	temp0,temp2
+ 782               	
+ 783:3DProasm.S    **** 	sts	sw_report+3,temp0
+ 784:3DProasm.S    **** 	clr	temp2
+ 785:3DProasm.S    **** 	bld	temp2,0			; h:-------3
+ 786               	
+ 787               		;  Buttons 1-8
+ 788               	
+ 789:3DProasm.S    **** 	dec	XL
+ 790               	
+ 791:3DProasm.S    **** 	ld	temp0,X			; b:-7654321
+ 792               	
+ 793:3DProasm.S    **** 	subi	XL,3
+ 794               	
+ 795:3DProasm.S    **** 	ld	temp1,X			; b:-89-----
+ 796:3DProasm.S    **** 	bst	temp1,6
+ 797:3DProasm.S    **** 	bld	temp0,7			; b:87654321
+ 798               	
+ 799:3DProasm.S    **** 	com	temp0
+ 800               	
+ 801:3DProasm.S    **** 	clr	temp1
+ 802:3DProasm.S    **** 	lsl	temp0			; b:7654321-
+ 803:3DProasm.S    **** 	rol	temp1			; b:-------8
+ 804:3DProasm.S    **** 	or	temp0,temp2
+ 805               	
+ 806:3DProasm.S    **** 	sts	sw_report+4,temp0
+ 807:3DProasm.S    **** 	mov	temp2,temp1
+ 808               	
+ 809               		; Slider
+ 810               	
+ 811:3DProasm.S    **** 	subi	XL,2
+ 812               	
+ 813:3DProasm.S    **** 	ld	temp0,X			; sl:-6543210
+ 814               	
+ 815:3DProasm.S    **** 	inc	XL
+ 816:3DProasm.S    **** 	inc	XL
+ 817               	
+ 818:3DProasm.S    **** 	ld	temp1,X
+ 819:3DProasm.S    **** 	andi	temp1,0b00000111	; sh:-----987
+ 820               	
+ 821:3DProasm.S    **** 	lsl	temp0			; sl:6543210-
+ 822:3DProasm.S    **** 	lsr	temp1			; sh:------98 [7]
+ 823:3DProasm.S    **** 	ror	temp0			; sl:76543210
+ 824               	
+ 825:3DProasm.S    **** 	ldi	temp3,0xFE
+ 826:3DProasm.S    **** 	add	temp1,temp3		; Add -512
+ 827:3DProasm.S    **** 	andi	temp1,0b00000011
+ 828               	
+ 829:3DProasm.S    **** 	bst	temp0,7
+ 830:3DProasm.S    **** 	lsl	temp0			; sl:6543210-
+ 831:3DProasm.S    **** 	or	temp0,temp2
+ 832               	
+ 833:3DProasm.S    **** 	sts	sw_report+5,temp0
+ 834               	
+ 835:3DProasm.S    **** 	lsl	temp1			; sh:-----98-
+ 836:3DProasm.S    **** 	bld	temp1,0
+ 837               	
+ 838:3DProasm.S    **** 	sts	sw_report+6,temp1
+ 839               	
+ 840:3DProasm.S    **** 	ret
+ 841               	
+ 842               	#endif // SIXAXIS
+ 843               	
+ 844               	;-------------------------------------------------------------------------------
+ 845               	;*******************************************************************************
+ 846               	;	Initiate and monitor data transfer from a 3DP/FFP/PP.
+ 847               	;	INT0 is left enabled upon exit.
+ 848               	;
+ 849               	; Input:
+ 850               	;	temp1	0 for data packet, -n for ID kick
+ 851               	;	temp2	No. of triplets to wait for
+ 852               	; Return:
+ 853               	;	1 - received, 0 - timed out
+ 854               	;-------------------------------------------------------------------------------
+ 855               	
+ 856               	#define	argSZ		r22
+ 857               	#define	argID		r24
+ 858               	
+ 859               	#define	resOkL		r24
+ 860               	
+ 861               		.global QueryFFP
+ 862               	
+ 863               	QueryFFP:
+ 864:3DProasm.S    **** 	mov	temp1,argID
+ 865:3DProasm.S    **** 	mov	temp2,argSZ
+ 866               	
+ 867:3DProasm.S    **** 	clr	resOkL			; Default return 0
+ 868               	
+ 869:3DProasm.S    **** 	cli				; Disable interrupts
+ 870               	
+ 871:3DProasm.S    **** 	sbi	EIFR,INTF0		; Clear INT condition
+ 872:3DProasm.S    **** 	sbi	EIMSK,INT0		; Enable INT
+ 873               	
+ 874:3DProasm.S    **** 	clr	temp3
+ 875               	
+ 876:3DProasm.S    **** 	sbis	BUTPIN,BUT1		; Button 1 pressed ?
+ 877:3DProasm.S    **** 	ser	temp3			; Yes, have to swallow 1st INT..
+ 878               	
+ 879:3DProasm.S    **** 	ldi	temp0,_B1(PSRSYNC)	; reset prescaler
+ 880:3DProasm.S    **** 	out	GTCCR,temp0
+ 881               	
+ 882:3DProasm.S    **** 	ldi	temp0,T6TO400US
+ 883:3DProasm.S    **** 	out	TCNT0,temp0		; Set up initial timeout
+ 884               	
+ 885:3DProasm.S    **** 	sbi	TIFR0,TOV0		; Clear overflow flag
+ 886               	
+ 887:3DProasm.S    **** 	sts	sw_clkcnt,temp3		; Preset clock counter
+ 888               	
+ 889:3DProasm.S    **** 	ldi	temp0,lo8(sw_pktstart)	; &ffp_packet[6]
+ 890:3DProasm.S    **** 	sts	sw_pktptrL,temp0
+ 891:3DProasm.S    **** 	ldi	temp0,hi8(sw_pktstart)	; &ffp_packet[6]
+ 892:3DProasm.S    **** 	sts	sw_pktptrH,temp0
+ 893               	
+ 894:3DProasm.S    **** 	sei				;				1
+ 895               	
+ 896               	Ptrigger:
+ 897:3DProasm.S    **** 	cbi	TRGDDR,TRGX1BIT		;				2
+ 898:3DProasm.S    **** 	cbi	TRGDDR,TRGY2BIT		;				2
+ 899               	
+ 900:3DProasm.S    **** 	ldi	temp0,TRGWAIT		; wait 48us
+ 901:3DProasm.S    **** 1:	dec	temp0
+ 902:3DProasm.S    **** 	brne	1b
+ 903               	
+ 904:3DProasm.S    **** 	sbi	TRGDDR,TRGX1BIT		;				2
+ 905:3DProasm.S    **** 	sbi	TRGDDR,TRGY2BIT		;				2
+ 906               	
+ 907               	Ploop:
+ 908:3DProasm.S    **** 	lds	temp0,sw_clkcnt		;					+2
+ 909:3DProasm.S    **** 	cp	temp0,temp3		; Anything new ?		1
+ 910:3DProasm.S    **** 	brne	Pgotsome		;				1/2 = 2/3
+ 911               	
+ 912:3DProasm.S    **** 	sbis	TIFR0,TOV0		; Timeout ? Skip if TOV set	1/2
+ 913:3DProasm.S    **** 	rjmp	Ploop			; Wait some more		2 = 4
+ 914               	
+ 915:3DProasm.S    **** 	ret				; Signal timeout, return 0
+ 916               	
+ 917               	Pgotsome:
+ 918:3DProasm.S    **** 	lds	temp0,sw_clkcnt		;				1	+1
+ 919               	
+ 920:3DProasm.S    **** 	sub	temp0,temp3		; # clk's that occured		1
+ 921:3DProasm.S    **** 	add	temp3,temp0		; Correct clkcnt copy		1
+ 922               	
+ 923:3DProasm.S    **** 	cp	temp3,temp2		; Got all we need ?		1
+ 924:3DProasm.S    **** 	brsh	Pdone			; Yes, done			1/2 = 6
+ 925               	
+ 926:3DProasm.S    **** 	tst	temp1			; Kick pending ?		1
+ 927:3DProasm.S    **** 	brpl	Ploop			; Nope				1/2 = 8
+ 928               	
+ 929:3DProasm.S    **** 	add	temp1,temp0		; Kick due ?			1
+ 930:3DProasm.S    **** 	brmi	Ploop			; Nope				1/2 = 10
+ 931               	
+ 932:3DProasm.S    **** 	rjmp	Ptrigger		; Yes, kick			2 = 11
+ 933               	
+ 934               	Pdone:					; Packet arrived..
+ 935:3DProasm.S    **** 	inc	resOkL			; Signal Ok, return 1
+ 936:3DProasm.S    **** 	ret
+ 937               	
+ 938               	;-------------------------------------------------------------------------------
+ 939               	;*******************************************************************************
+ 940               	;	Initiate and monitor data transfer from a 3DPro.
+ 941               	;	INT0 is left enabled upon exit.
+ 942               	;
+ 943               	; Input:
+ 944               	;	temp1	0 for data packet, -n for ID kick
+ 945               	;	temp2	No. of triplets to wait for
+ 946               	; Return:
+ 947               	;	1 - received, 0 - timed out
+ 948               	;-------------------------------------------------------------------------------
+ 949               	
+ 950               		.global Query3DP
+ 951               	
+ 952               	Query3DP:
+ 953:3DProasm.S    **** 	rcall	QueryFFP
+ 954               	
+ 955:3DProasm.S    **** 	tst	resOkL
+ 956:3DProasm.S    **** 	breq	Qexit
+ 957               	
+ 958:3DProasm.S    **** 	lds	temp0,sw_clkcnt
+ 959:3DProasm.S    **** 	cpi	temp0,DATSZ3DP		; If it's a data packet..
+ 960:3DProasm.S    **** 	brne	Qexit
+ 961               	
+ 962:3DProasm.S    **** 	cli
+ 963:3DProasm.S    **** 	clr	temp0
+ 964:3DProasm.S    **** 	sts	sw_clkcnt,temp0		; Correct SWclkcnt and ptr so the next
+ 965               	
+ 966:3DProasm.S    **** 	lds	temp0,sw_pktptrL
+ 967:3DProasm.S    **** 	lds	temp1,sw_pktptrH
+ 968:3DProasm.S    **** 	ldi	temp2,1
+ 969:3DProasm.S    **** 	add	temp0,temp2
+ 970:3DProasm.S    **** 	clr	temp2
+ 971:3DProasm.S    **** 	adc	temp1,temp2
+ 972:3DProasm.S    **** 	sts	sw_pktptrL,temp0
+ 973:3DProasm.S    **** 	sts	sw_pktptrH,temp1
+ 974               	
+ 975:3DProasm.S    **** 	sei
+ 976               	Qexit:
+ 977:3DProasm.S    **** 	ret
+ 978               	
+ 979               	;-------------------------------------------------------------------------------
+ 980               	;*******************************************************************************
+ 981               	;*  End of file
+ 982               	;*******************************************************************************
+ 983               	;-------------------------------------------------------------------------------
+DEFINED SYMBOLS
+          3DProasm.S:189    .bss:00000001 sw_idbuf
+          3DProasm.S:192    .bss:0000003d sw_packet3
+          3DProasm.S:195    .bss:00000045 sw_packet2
+          3DProasm.S:198    .bss:0000004d sw_packet1
+          3DProasm.S:201    .bss:0000004f ffp_packet
+          3DProasm.S:205    .bss:00000055 sw_pktptr
+          3DProasm.S:211    .bss:00000057 sw_clkcnt
+          3DProasm.S:203    .bss:00000055 sw_pktstart
+          3DProasm.S:206    .bss:00000055 sw_pktptrL
+          3DProasm.S:208    .bss:00000056 sw_pktptrH
+          3DProasm.S:227    .text:00000000 __vector_1
+          3DProasm.S:269    .text:00000048 I0case0
+          3DProasm.S:290    .text:00000060 I0case5
+          3DProasm.S:277    .text:00000050 I0case2
+          3DProasm.S:306    .text:00000076 I0case3
+          3DProasm.S:308    .text:00000078 I0case6
+          3DProasm.S:310    .text:0000007a I0case1
+          3DProasm.S:312    .text:0000007c I0case4
+          3DProasm.S:314    .text:0000007e I0case7
+          3DProasm.S:319    .text:00000084 Int0End
+          3DProasm.S:363    .text:0000009a CopyFFPData
+          3DProasm.S:679    .text:00000134 Copy3DPData
+          3DProasm.S:863    .text:0000020e QueryFFP
+          3DProasm.S:896    .text:0000023c Ptrigger
+          3DProasm.S:907    .text:0000024a Ploop
+          3DProasm.S:917    .text:00000258 Pgotsome
+          3DProasm.S:934    .text:0000026e Pdone
+          3DProasm.S:952    .text:00000272 Query3DP
+          3DProasm.S:976    .text:000002a2 Qexit
+
+UNDEFINED SYMBOLS
+sw_report

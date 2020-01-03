@@ -1,0 +1,2168 @@
+   1               		.file	"usb_hid.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               		.section	.text.lookup,"ax",@progbits
+  12               	lookup:
+  13               	.LFB21:
+  14               		.file 1 "usb_hid.c"
+   1:usb_hid.c     **** /*******************************************************************************
+   2:usb_hid.c     ****  * File Name	: usb_hid.c
+   3:usb_hid.c     ****  * Project	: 3DP-Vert, Microsoft Sidewinder 3D Pro/PP/FFP to USB converter
+   4:usb_hid.c     ****  * Date		: 2009/06/27
+   5:usb_hid.c     ****  * Version      : 1.0
+   6:usb_hid.c     ****  * Target MCU	: AT90USB162/82, AT90USB646/1286, ATMEGA16U4/32U4
+   7:usb_hid.c     ****  * Tool Chain	: Atmel AVR Studio 4.18 716 / WinAVR 20100110
+   8:usb_hid.c     ****  * Author       : Detlef "Grendel" Mueller
+   9:usb_hid.c     ****  *                detlef@gmail.com
+  10:usb_hid.c     ****  * References	: usb_mouse.c by PRJC
+  11:usb_hid.c     ****  * Release Notes: Extremly simplyfied chapter 9 implementation.
+  12:usb_hid.c     ****  *
+  13:usb_hid.c     ****  * $Id: usb_hid.c 1.7 2010/04/23 05:35:08 Detlef Exp Detlef $
+  14:usb_hid.c     ****  ******************************************************************************/
+  15:usb_hid.c     **** 
+  16:usb_hid.c     **** #include "3DPro.h"
+  17:usb_hid.c     **** 
+  18:usb_hid.c     **** #define __usb_hid__
+  19:usb_hid.c     **** 
+  20:usb_hid.c     **** #include "usb_hid.h"
+  21:usb_hid.c     **** #include "usbdescr.h"
+  22:usb_hid.c     **** 
+  23:usb_hid.c     **** #include <avr/eeprom.h>
+  24:usb_hid.c     **** 
+  25:usb_hid.c     **** //******************************************************************************
+  26:usb_hid.c     **** //  Endpoint Buffer Configuration
+  27:usb_hid.c     **** //******************************************************************************
+  28:usb_hid.c     **** 
+  29:usb_hid.c     **** static const uint8_t
+  30:usb_hid.c     ****     endpoint_config_table[] PROGMEM =
+  31:usb_hid.c     ****     {
+  32:usb_hid.c     **** 	FALSE,
+  33:usb_hid.c     **** 	FALSE,
+  34:usb_hid.c     **** 	FALSE,
+  35:usb_hid.c     **** 	TRUE, EP_TYPE_INTERRUPT_IN, EP_SIZE( EP_HID_SZ ) | EP_HID_BUFFER
+  36:usb_hid.c     ****       #if defined(__AVR_ATmegaXU4__) || defined(__AVR_AT90USBX6__)
+  37:usb_hid.c     **** 	,FALSE
+  38:usb_hid.c     **** 	,FALSE
+  39:usb_hid.c     ****       #endif
+  40:usb_hid.c     ****     } ;
+  41:usb_hid.c     **** 
+  42:usb_hid.c     **** #define	SUPPORT_ENDPOINT_HALT	1
+  43:usb_hid.c     **** 
+  44:usb_hid.c     **** //******************************************************************************
+  45:usb_hid.c     **** //  Descriptor Data
+  46:usb_hid.c     **** //******************************************************************************
+  47:usb_hid.c     **** 
+  48:usb_hid.c     **** // These tables map a host descriptor request to the actual data.
+  49:usb_hid.c     **** 
+  50:usb_hid.c     **** #define	IN_RAM		0
+  51:usb_hid.c     **** #define	IN_ROM		1
+  52:usb_hid.c     **** #define	IN_EEP		2
+  53:usb_hid.c     **** 
+  54:usb_hid.c     **** // If any descriptor id > 255 bytes in size (ie. HID Report
+  55:usb_hid.c     **** // Descriptors), define LARGE_DESC (probably could be automated)
+  56:usb_hid.c     **** 
+  57:usb_hid.c     **** #if defined(LARGE_DESC)
+  58:usb_hid.c     ****  typedef uint16_t desc_sz_t ;
+  59:usb_hid.c     **** #else
+  60:usb_hid.c     ****  typedef uint8_t  desc_sz_t ;
+  61:usb_hid.c     **** #endif
+  62:usb_hid.c     **** 
+  63:usb_hid.c     **** // With a single Interface, wIndex can be ignored for descriptor look-ups
+  64:usb_hid.c     **** // Note: multi language would have to enable this as well.
+  65:usb_hid.c     **** 
+  66:usb_hid.c     **** #if USB_CONFIG_NUM_INTERF > 1
+  67:usb_hid.c     ****  #define M_IF( _c )		_c
+  68:usb_hid.c     ****  #define M_IF_C( _c )		_c,
+  69:usb_hid.c     **** #else
+  70:usb_hid.c     ****  #define M_IF( _c )
+  71:usb_hid.c     ****  #define M_IF_C( _c)
+  72:usb_hid.c     **** #endif
+  73:usb_hid.c     **** 
+  74:usb_hid.c     **** typedef struct
+  75:usb_hid.c     ****     {
+  76:usb_hid.c     **** 	uint16_t	wValue ;
+  77:usb_hid.c     ****   M_IF( uint16_t	wIndex ; )
+  78:usb_hid.c     **** 	const uint8_t	*addr ;
+  79:usb_hid.c     **** 	uint8_t		where ;
+  80:usb_hid.c     **** 	desc_sz_t	length ;
+  81:usb_hid.c     ****     }
+  82:usb_hid.c     ****     descriptor_list_t ;
+  83:usb_hid.c     **** 
+  84:usb_hid.c     **** static const descriptor_list_t
+  85:usb_hid.c     ****     str_descriptors[] PROGMEM =
+  86:usb_hid.c     ****     {
+  87:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_LAN ),     M_IF_C(0x0000)
+  88:usb_hid.c     **** 	  VP( &usbStringDescLan  ),    IN_ROM, USB_STRING_DESC_LAN_SZ },
+  89:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_MAN ),     M_IF_C(0x0409)
+  90:usb_hid.c     **** 	  VP( &usbStringDescMan ),     IN_ROM, USB_STRING_DESC_MAN_SZ },
+  91:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_SER ),     M_IF_C(0x0409)
+  92:usb_hid.c     **** 	  NULL,                        IN_EEP, USB_STRING_DESC_SER_SZ },
+  93:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_PRO_3DP ), M_IF_C(0x0409)
+  94:usb_hid.c     **** 	  VP( &usbStringDescPro3DP ),  IN_ROM, USB_STRING_DESC_PRO_3DP_SZ },
+  95:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_PRO_PP  ), M_IF_C(0x0409)
+  96:usb_hid.c     **** 	  VP( &usbStringDescProPP ),   IN_ROM, USB_STRING_DESC_PRO_PP_SZ  },
+  97:usb_hid.c     **** 	{ USBLV( USB_STRING_DESC_TYPE, USB_STRING_IDX_PRO_FFP ), M_IF_C(0x0409)
+  98:usb_hid.c     **** 	  VP( &usbStringDescProFFP ),  IN_ROM, USB_STRING_DESC_PRO_FFP_SZ }
+  99:usb_hid.c     ****     },
+ 100:usb_hid.c     ****     cfg_descriptors_3DP[] PROGMEM =
+ 101:usb_hid.c     ****     {
+ 102:usb_hid.c     **** 	{  USBLV( USB_DEVICE_DESC_TYPE, 0 ),	M_IF_C(0)
+ 103:usb_hid.c     **** 	   VP( &usbDeviceDesc3DP ),		IN_ROM, sizeof( usb_device_desc_t )
+ 104:usb_hid.c     **** 	},
+ 105:usb_hid.c     **** 	{  USBLV( USB_CONFIG_DESC_TYPE, 0 ),	M_IF_C(0)
+ 106:usb_hid.c     **** 	   VP( &usbConfigurationDesc3DP ),	IN_ROM, sizeof( usb_configuration_desc_t )
+ 107:usb_hid.c     **** 	},
+ 108:usb_hid.c     **** 	{  USBLV( USB_HID_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 109:usb_hid.c     **** 	  VP( &usbConfigurationDesc3DP.hid ),	IN_ROM, sizeof( usb_hid_desc_t )
+ 110:usb_hid.c     **** 	},
+ 111:usb_hid.c     **** 	{ USBLV( USB_HIDREP_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 112:usb_hid.c     **** 	  VP( &usbHidRepDesc3DP ),		IN_ROM, sizeof( usbHidRepDesc3DP )
+ 113:usb_hid.c     **** 	}
+ 114:usb_hid.c     ****     },
+ 115:usb_hid.c     ****     cfg_descriptors_PP[] PROGMEM =
+ 116:usb_hid.c     ****     {
+ 117:usb_hid.c     **** 	{  USBLV( USB_DEVICE_DESC_TYPE, 0 ),	M_IF_C(0)
+ 118:usb_hid.c     **** 	   VP( &usbDeviceDescPP ),		IN_ROM, sizeof( usb_device_desc_t )
+ 119:usb_hid.c     **** 	},
+ 120:usb_hid.c     **** 	{  USBLV( USB_CONFIG_DESC_TYPE, 0 ),	M_IF_C(0)
+ 121:usb_hid.c     **** 	   VP( &usbConfigurationDescFFP ),	IN_ROM, sizeof( usb_configuration_desc_t )
+ 122:usb_hid.c     **** 	},
+ 123:usb_hid.c     **** 	{  USBLV( USB_HID_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 124:usb_hid.c     **** 	  VP( &usbConfigurationDescFFP.hid ),	IN_ROM, sizeof( usb_hid_desc_t )
+ 125:usb_hid.c     **** 	},
+ 126:usb_hid.c     **** 	{ USBLV( USB_HIDREP_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 127:usb_hid.c     **** 	  VP( &usbHidRepDescFFP ),		IN_ROM, sizeof( usbHidRepDescFFP )
+ 128:usb_hid.c     **** 	}
+ 129:usb_hid.c     ****     },
+ 130:usb_hid.c     ****     cfg_descriptors_FFP[] PROGMEM =
+ 131:usb_hid.c     ****     {
+ 132:usb_hid.c     **** 	{  USBLV( USB_DEVICE_DESC_TYPE, 0 ),	M_IF_C(0)
+ 133:usb_hid.c     **** 	   VP( &usbDeviceDescFFP ),		IN_ROM, sizeof( usb_device_desc_t )
+ 134:usb_hid.c     **** 	},
+ 135:usb_hid.c     **** 	{  USBLV( USB_CONFIG_DESC_TYPE, 0 ),	M_IF_C(0)
+ 136:usb_hid.c     **** 	   VP( &usbConfigurationDescFFP ),	IN_ROM, sizeof( usb_configuration_desc_t )
+ 137:usb_hid.c     **** 	},
+ 138:usb_hid.c     **** 	{  USBLV( USB_HID_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 139:usb_hid.c     **** 	  VP( &usbConfigurationDescFFP.hid ),	IN_ROM, sizeof( usb_hid_desc_t )
+ 140:usb_hid.c     **** 	},
+ 141:usb_hid.c     **** 	{ USBLV( USB_HIDREP_DESC_TYPE, 0 ),	M_IF_C(USB_INTERF_NUM)
+ 142:usb_hid.c     **** 	  VP( &usbHidRepDescFFP ),		IN_ROM, sizeof( usbHidRepDescFFP )
+ 143:usb_hid.c     **** 	}
+ 144:usb_hid.c     ****     } ;
+ 145:usb_hid.c     **** 
+ 146:usb_hid.c     **** //******************************************************************************
+ 147:usb_hid.c     **** //  Variables
+ 148:usb_hid.c     **** //******************************************************************************
+ 149:usb_hid.c     **** 
+ 150:usb_hid.c     **** volatile uint8_t
+ 151:usb_hid.c     ****     usb_configuration,			// zero when not configured
+ 152:usb_hid.c     ****     usb_suspend ;			// Suspended
+ 153:usb_hid.c     **** 
+ 154:usb_hid.c     **** //******************************************************************************
+ 155:usb_hid.c     **** 
+ 156:usb_hid.c     **** static void chk_serial ( void )
+ 157:usb_hid.c     **** {
+ 158:usb_hid.c     ****     uint8_t
+ 159:usb_hid.c     **** 	i, *s, *d ;
+ 160:usb_hid.c     **** 
+ 161:usb_hid.c     ****     d = NULL ;
+ 162:usb_hid.c     ****     i = USB_STRING_DESC_SER_SZ ;
+ 163:usb_hid.c     **** 
+ 164:usb_hid.c     ****     if ( eeprom_read_byte( d ) == i )
+ 165:usb_hid.c     **** 	return ;
+ 166:usb_hid.c     **** 
+ 167:usb_hid.c     ****     for ( s = VP( &usbStringDescSer ) ; i-- ; ++s, ++d )
+ 168:usb_hid.c     **** 	eeprom_write_byte( d, pgm_read_byte( s ) ) ;
+ 169:usb_hid.c     **** }
+ 170:usb_hid.c     **** 
+ 171:usb_hid.c     **** //******************************************************************************
+ 172:usb_hid.c     **** //  Public Functions
+ 173:usb_hid.c     **** //******************************************************************************
+ 174:usb_hid.c     **** 
+ 175:usb_hid.c     **** // Initialize USB system
+ 176:usb_hid.c     **** 
+ 177:usb_hid.c     **** void usb_init ( void )
+ 178:usb_hid.c     **** {
+ 179:usb_hid.c     ****     chk_serial() ;
+ 180:usb_hid.c     **** 
+ 181:usb_hid.c     ****     HW_CONFIG() ;
+ 182:usb_hid.c     **** 
+ 183:usb_hid.c     ****     // fire up USB
+ 184:usb_hid.c     **** 
+ 185:usb_hid.c     ****     USBCON = _B1(USBE) | _B1(FRZCLK) ;	// enable USB module w/ frozen clock
+ 186:usb_hid.c     **** 
+ 187:usb_hid.c     ****     // config PLL, wait for PLL lock
+ 188:usb_hid.c     **** 
+ 189:usb_hid.c     ****     for ( PLL_CONFIG() ; bit_is_clear( PLLCSR, PLOCK ) ; )
+ 190:usb_hid.c     **** 	;
+ 191:usb_hid.c     **** 
+ 192:usb_hid.c     ****     USB_CONFIG() ;			// start USB clock
+ 193:usb_hid.c     **** 
+ 194:usb_hid.c     ****     UDCON = _B0(DETACH) ;		// enable attach resistor
+ 195:usb_hid.c     **** 
+ 196:usb_hid.c     ****     UDIEN = _B1(EORSTE) |		// setup RX
+ 197:usb_hid.c     **** //	    _B1(SOFE) |			// SOF
+ 198:usb_hid.c     **** //	    _B1(WAKEUPE) |		// wakeup
+ 199:usb_hid.c     **** 	    _B1(SUSPE)  ;		// suspend
+ 200:usb_hid.c     **** }
+ 201:usb_hid.c     **** 
+ 202:usb_hid.c     **** //------------------------------------------------------------------------------
+ 203:usb_hid.c     **** 
+ 204:usb_hid.c     **** // Check if the USB is configured
+ 205:usb_hid.c     **** 
+ 206:usb_hid.c     **** uint8_t usb_configured ( void )
+ 207:usb_hid.c     **** {
+ 208:usb_hid.c     ****     uint8_t
+ 209:usb_hid.c     **** 	f ;
+ 210:usb_hid.c     **** 
+ 211:usb_hid.c     ****     CRITICAL_VAR() ;
+ 212:usb_hid.c     **** 
+ 213:usb_hid.c     ****     ENTER_CRITICAL() ;
+ 214:usb_hid.c     **** 
+ 215:usb_hid.c     ****     f = (usb_configuration && ! usb_suspend) ;
+ 216:usb_hid.c     **** 
+ 217:usb_hid.c     ****     EXIT_CRITICAL_RET( f ) ;
+ 218:usb_hid.c     **** }
+ 219:usb_hid.c     **** 
+ 220:usb_hid.c     **** //------------------------------------------------------------------------------
+ 221:usb_hid.c     **** 
+ 222:usb_hid.c     **** // Check if the IN pipe is busy
+ 223:usb_hid.c     **** 
+ 224:usb_hid.c     **** uint8_t usb_IN_busy ( void )
+ 225:usb_hid.c     **** {
+ 226:usb_hid.c     ****     uint8_t
+ 227:usb_hid.c     **** 	f ;
+ 228:usb_hid.c     **** 
+ 229:usb_hid.c     ****     CRITICAL_VAR() ;
+ 230:usb_hid.c     **** 
+ 231:usb_hid.c     ****     ENTER_CRITICAL() ;
+ 232:usb_hid.c     **** 
+ 233:usb_hid.c     ****     if ( ! usb_configuration || usb_suspend )
+ 234:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 235:usb_hid.c     **** 
+ 236:usb_hid.c     ****     UENUM = EP_HID ;			// select EP
+ 237:usb_hid.c     **** 
+ 238:usb_hid.c     ****     f = bit_is_clear( UEINTX, RWAL ) ;
+ 239:usb_hid.c     **** 
+ 240:usb_hid.c     ****     EXIT_CRITICAL_RET( f ) ;
+ 241:usb_hid.c     **** }
+ 242:usb_hid.c     **** 
+ 243:usb_hid.c     **** //------------------------------------------------------------------------------
+ 244:usb_hid.c     **** 
+ 245:usb_hid.c     **** // Send data via IN pipe
+ 246:usb_hid.c     **** 
+ 247:usb_hid.c     **** uint8_t usb_send_IN ( uint8_t *data, uint8_t len )
+ 248:usb_hid.c     **** {
+ 249:usb_hid.c     ****     CRITICAL_VAR() ;
+ 250:usb_hid.c     **** 
+ 251:usb_hid.c     ****     ENTER_CRITICAL() ;
+ 252:usb_hid.c     **** 
+ 253:usb_hid.c     ****     if ( ! usb_configuration || usb_suspend )
+ 254:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 255:usb_hid.c     **** 
+ 256:usb_hid.c     ****     UENUM = EP_HID ;
+ 257:usb_hid.c     **** 
+ 258:usb_hid.c     ****     // We really don't need the timeout, since main() only
+ 259:usb_hid.c     ****     // calls if ! usb_IN_busy().
+ 260:usb_hid.c     **** #if DEAD_CODE
+ 261:usb_hid.c     **** 
+ 262:usb_hid.c     ****     uint8_t
+ 263:usb_hid.c     **** 	to ;
+ 264:usb_hid.c     **** 
+ 265:usb_hid.c     ****     for ( to = UDFNUML + 10 ; bit_is_clear( UEINTX, RWAL ) ; )
+ 266:usb_hid.c     ****     {
+ 267:usb_hid.c     **** 	EXIT_CRITICAL() ;
+ 268:usb_hid.c     **** 
+ 269:usb_hid.c     **** 	// Timeout ?
+ 270:usb_hid.c     **** 
+ 271:usb_hid.c     **** 	if ( UDFNUML == to )
+ 272:usb_hid.c     **** 	    return ( FALSE ) ;
+ 273:usb_hid.c     **** 
+ 274:usb_hid.c     **** 	ENTER_CRITICAL() ;
+ 275:usb_hid.c     **** 
+ 276:usb_hid.c     **** 	// has the USB gone offline ?
+ 277:usb_hid.c     **** 
+ 278:usb_hid.c     **** 	if ( ! usb_configuration )
+ 279:usb_hid.c     **** 	    EXIT_CRITICAL_RET( FALSE ) ;
+ 280:usb_hid.c     **** 
+ 281:usb_hid.c     **** 	UENUM = EP_HID ;
+ 282:usb_hid.c     ****     }
+ 283:usb_hid.c     **** #endif
+ 284:usb_hid.c     **** 
+ 285:usb_hid.c     ****     for ( ; len-- ; )			// Write data to FIFO
+ 286:usb_hid.c     **** 	UEDATX = *data++ ;
+ 287:usb_hid.c     **** 
+ 288:usb_hid.c     ****     UEINTX =
+ 289:usb_hid.c     **** 	  _B0(FIFOCON)			// Send FIFO data & switch bank
+ 290:usb_hid.c     **** 	| _B0(NAKINI)			// Clear previous NAK
+ 291:usb_hid.c     **** 	| _B0(RWAL)			// Don't mess w/ RWAL
+ 292:usb_hid.c     **** 	| _B1(NAKOUTI)			// no effect on the bit
+ 293:usb_hid.c     **** 	| _B1(RXSTPI)			// no effect on the bit
+ 294:usb_hid.c     **** 	| _B0(RXOUTI)			// no effect on the bit
+ 295:usb_hid.c     **** 	| _B1(STALLEDI)			// no effect on the bit
+ 296:usb_hid.c     **** 	| _B0(TXINI) ;			// clear TX ready int flag
+ 297:usb_hid.c     **** 
+ 298:usb_hid.c     ****     EXIT_CRITICAL_RET( TRUE ) ;
+ 299:usb_hid.c     **** }
+ 300:usb_hid.c     **** 
+ 301:usb_hid.c     **** //******************************************************************************
+ 302:usb_hid.c     **** //  Private Functions
+ 303:usb_hid.c     **** //******************************************************************************
+ 304:usb_hid.c     **** 
+ 305:usb_hid.c     **** // USB Device Interrupt
+ 306:usb_hid.c     **** 
+ 307:usb_hid.c     **** ISR( USB_GEN_vect )
+ 308:usb_hid.c     **** {
+ 309:usb_hid.c     ****     uint8_t
+ 310:usb_hid.c     **** 	intbits ;
+ 311:usb_hid.c     **** 
+ 312:usb_hid.c     ****     intbits = UDINT ;
+ 313:usb_hid.c     ****     UDINT   = 0 ;
+ 314:usb_hid.c     **** 
+ 315:usb_hid.c     ****     if ( intbits & _BV( EORSTI ) )	// USB reset
+ 316:usb_hid.c     ****     {
+ 317:usb_hid.c     **** 	UENUM   = 0 ;
+ 318:usb_hid.c     **** 	UECONX  = 1 ;
+ 319:usb_hid.c     **** 	UECFG0X = EP_TYPE_CONTROL ;
+ 320:usb_hid.c     **** 	UECFG1X = EP_SIZE( ENDPOINT0_SIZE ) | EP_SINGLE_BUFFER ;
+ 321:usb_hid.c     **** 	UEIENX  = _BV( RXSTPE ) ;
+ 322:usb_hid.c     **** 
+ 323:usb_hid.c     **** 	usb_configuration = 0 ;
+ 324:usb_hid.c     **** 	usb_suspend = FALSE ;
+ 325:usb_hid.c     **** 
+ 326:usb_hid.c     **** 	return ;
+ 327:usb_hid.c     ****     }
+ 328:usb_hid.c     **** 
+ 329:usb_hid.c     ****     if ( usb_configuration )
+ 330:usb_hid.c     ****     {
+ 331:usb_hid.c     **** 	if ( (intbits & _BV(SUSPI)) && bit_is_set( UDIEN, SUSPE ) )
+ 332:usb_hid.c     **** 	{
+ 333:usb_hid.c     **** 	    // Enter suspend
+ 334:usb_hid.c     **** 
+ 335:usb_hid.c     **** 	    clr_bit( UDIEN, SUSPE ) ;		// Disable suspend IRQ
+ 336:usb_hid.c     **** 	    set_bit( UDIEN, WAKEUPE ) ;		// Enable wakeup IRQ
+ 337:usb_hid.c     **** 
+ 338:usb_hid.c     **** 	    set_bit( USBCON, FRZCLK ) ;		// Stop USB clcok
+ 339:usb_hid.c     **** 	    clr_bit( PLLCSR, PLLE ) ;		// Stop PLL
+ 340:usb_hid.c     **** 
+ 341:usb_hid.c     **** 	    usb_suspend = TRUE ;
+ 342:usb_hid.c     **** 	}
+ 343:usb_hid.c     **** 
+ 344:usb_hid.c     **** 	if ( (intbits & _BV(WAKEUPI)) && bit_is_set( UDIEN, WAKEUPE ) )
+ 345:usb_hid.c     **** 	{
+ 346:usb_hid.c     **** 	    // Exit suspend
+ 347:usb_hid.c     **** 
+ 348:usb_hid.c     **** 	    for ( set_bit( PLLCSR, PLLE ) ; bit_is_clear( PLLCSR, PLOCK ) ; )
+ 349:usb_hid.c     **** 		;				// Start PLL
+ 350:usb_hid.c     **** 
+ 351:usb_hid.c     **** 	    clr_bit( USBCON, FRZCLK ) ;		// Enable USB clock
+ 352:usb_hid.c     **** 
+ 353:usb_hid.c     **** 	    set_bit( UDIEN, SUSPE ) ;		// Enable suspend IRQ
+ 354:usb_hid.c     **** 	    clr_bit( UDIEN, WAKEUPE ) ;		// Disable wakeup IRQ
+ 355:usb_hid.c     **** 
+ 356:usb_hid.c     **** 	    usb_suspend = FALSE ;
+ 357:usb_hid.c     **** 	}
+ 358:usb_hid.c     **** 
+ 359:usb_hid.c     **** // SOF disabled, don't need it
+ 360:usb_hid.c     **** //
+ 361:usb_hid.c     **** //	if ( intbits & _BV( SOFI ) )
+ 362:usb_hid.c     **** //	{
+ 363:usb_hid.c     **** //
+ 364:usb_hid.c     **** //	}
+ 365:usb_hid.c     ****     }
+ 366:usb_hid.c     **** }
+ 367:usb_hid.c     **** 
+ 368:usb_hid.c     **** //------------------------------------------------------------------------------
+ 369:usb_hid.c     **** 
+ 370:usb_hid.c     **** // Misc functions to wait for ready and send/receive packets
+ 371:usb_hid.c     **** 
+ 372:usb_hid.c     **** // Wait until packet TX
+ 373:usb_hid.c     **** 
+ 374:usb_hid.c     **** static inline void usb_wait_in_ready ( void )
+ 375:usb_hid.c     **** {
+ 376:usb_hid.c     ****     for ( ; bit_is_clear( UEINTX, TXINI ) ; )
+ 377:usb_hid.c     **** 	;
+ 378:usb_hid.c     **** }
+ 379:usb_hid.c     **** 
+ 380:usb_hid.c     **** // Trigger TX
+ 381:usb_hid.c     **** 
+ 382:usb_hid.c     **** static inline void usb_send_in ( void )	
+ 383:usb_hid.c     **** {
+ 384:usb_hid.c     ****     UEINTX = ~_BV( TXINI ) ;
+ 385:usb_hid.c     **** }
+ 386:usb_hid.c     **** 
+ 387:usb_hid.c     **** // Wait until packet RX
+ 388:usb_hid.c     **** 
+ 389:usb_hid.c     **** static inline void usb_wait_receive_out ( void )
+ 390:usb_hid.c     **** {
+ 391:usb_hid.c     ****     for ( ; bit_is_clear( UEINTX, RXOUTI ) ; )
+ 392:usb_hid.c     **** 	;
+ 393:usb_hid.c     **** }
+ 394:usb_hid.c     **** 
+ 395:usb_hid.c     **** // Rearm RX
+ 396:usb_hid.c     **** 
+ 397:usb_hid.c     **** static inline void usb_ack_out ( void )
+ 398:usb_hid.c     **** {
+ 399:usb_hid.c     ****     UEINTX = ~_BV( RXOUTI ) ;
+ 400:usb_hid.c     **** }
+ 401:usb_hid.c     **** 
+ 402:usb_hid.c     **** //------------------------------------------------------------------------------
+ 403:usb_hid.c     **** 
+ 404:usb_hid.c     **** // Send data block via EP0
+ 405:usb_hid.c     **** 
+ 406:usb_hid.c     **** static void FA_NOINLINE( usb_send_EP0 ) ( const uint8_t *p, desc_sz_t len, uint8_t where )
+ 407:usb_hid.c     **** {
+ 408:usb_hid.c     ****     uint8_t
+ 409:usb_hid.c     **** 	i, n ;
+ 410:usb_hid.c     **** 
+ 411:usb_hid.c     ****     do
+ 412:usb_hid.c     ****     {
+ 413:usb_hid.c     **** 	// wait until IN packet sent
+ 414:usb_hid.c     **** 
+ 415:usb_hid.c     **** 	do
+ 416:usb_hid.c     **** 	{
+ 417:usb_hid.c     **** 	    i = UEINTX ;
+ 418:usb_hid.c     **** 	}
+ 419:usb_hid.c     **** 	while ( bits_are_clear( i, _BV( TXINI ) | _BV( RXOUTI ) ) ) ;
+ 420:usb_hid.c     **** 
+ 421:usb_hid.c     **** 	if ( i & _BV( RXOUTI ) )
+ 422:usb_hid.c     **** 	    return ;				// Got OUT packet, abort
+ 423:usb_hid.c     **** 
+ 424:usb_hid.c     **** 	// Set up IN packet
+ 425:usb_hid.c     **** 
+ 426:usb_hid.c     **** 	n = len < ENDPOINT0_SIZE ? len : ENDPOINT0_SIZE ;
+ 427:usb_hid.c     **** 
+ 428:usb_hid.c     **** 	for ( i = n ; i-- ; ++p )
+ 429:usb_hid.c     **** 	    if ( where == IN_RAM )
+ 430:usb_hid.c     **** 		UEDATX = *p ;
+ 431:usb_hid.c     **** 	    else
+ 432:usb_hid.c     **** 	    if ( where == IN_ROM )
+ 433:usb_hid.c     **** 		UEDATX = pgm_read_byte( p ) ;
+ 434:usb_hid.c     **** 	    else
+ 435:usb_hid.c     **** 	    if ( where == IN_EEP )
+ 436:usb_hid.c     **** 		UEDATX = eeprom_read_byte( p ) ;
+ 437:usb_hid.c     **** 
+ 438:usb_hid.c     **** 	usb_send_in() ;
+ 439:usb_hid.c     **** 
+ 440:usb_hid.c     **** 	len -= n ;
+ 441:usb_hid.c     ****     }
+ 442:usb_hid.c     ****     while ( len || n == ENDPOINT0_SIZE ) ;	// Send ZLP if ! (len % EP0sz)
+ 443:usb_hid.c     **** }
+ 444:usb_hid.c     **** 
+ 445:usb_hid.c     **** //------------------------------------------------------------------------------
+ 446:usb_hid.c     **** 
+ 447:usb_hid.c     **** // Look up a descriptor
+ 448:usb_hid.c     **** 
+ 449:usb_hid.c     **** static uint8_t * FA_NOINLINE( lookup )
+ 450:usb_hid.c     ****     ( uint16_t wValue, M_IF_C( uint16_t wIndex ) const descriptor_list_t *desc, uint8_t len )
+ 451:usb_hid.c     **** {
+  15               		.loc 1 451 0
+  16               		.cfi_startproc
+  17               	.LVL0:
+  18               	/* prologue: function */
+  19               	/* frame size = 0 */
+  20               	/* stack size = 0 */
+  21               	.L__stack_usage = 0
+  22               	.L2:
+ 452:usb_hid.c     ****     for ( ; len-- ; ++desc )
+  23               		.loc 1 452 0 discriminator 1
+  24 0000 4423      		tst r20
+  25 0002 01F0      		breq .L7
+  26               	.LVL1:
+  27               	.LBB23:
+ 453:usb_hid.c     **** 	if (          pgm_read_word( &desc->wValue ) == wValue
+  28               		.loc 1 453 0
+  29 0004 FB01      		movw r30,r22
+  30               	/* #APP */
+  31               	 ;  453 "usb_hid.c" 1
+  32 0006 2591      		lpm r18, Z+
+  33 0008 3491      		lpm r19, Z
+  34               		
+  35               	 ;  0 "" 2
+  36               	.LVL2:
+  37               	/* #NOAPP */
+  38 000a 4150      		subi r20,lo8(-(-1))
+  39               	.LVL3:
+  40               	.LBE23:
+  41 000c 2817      		cp r18,r24
+  42 000e 3907      		cpc r19,r25
+  43 0010 01F0      		breq .L5
+ 452:usb_hid.c     ****     for ( ; len-- ; ++desc )
+  44               		.loc 1 452 0
+  45 0012 6A5F      		subi r22,-6
+  46 0014 7F4F      		sbci r23,-1
+  47               	.LVL4:
+  48 0016 00C0      		rjmp .L2
+  49               	.LVL5:
+  50               	.L7:
+ 454:usb_hid.c     **** 	     M_IF( && pgm_read_word( &desc->wIndex ) == wIndex )
+ 455:usb_hid.c     **** 	   )
+ 456:usb_hid.c     **** 	    return ( VP( desc ) ) ;
+ 457:usb_hid.c     **** 
+ 458:usb_hid.c     ****     return ( NULL ) ;
+  51               		.loc 1 458 0
+  52 0018 80E0      		ldi r24,0
+  53               	.LVL6:
+  54 001a 90E0      		ldi r25,0
+  55 001c 0895      		ret
+  56               	.LVL7:
+  57               	.L5:
+  58 001e CB01      		movw r24,r22
+  59               	.LVL8:
+ 459:usb_hid.c     **** }
+  60               		.loc 1 459 0
+  61 0020 0895      		ret
+  62               		.cfi_endproc
+  63               	.LFE21:
+  65               		.section	.text.usb_send_EP0,"ax",@progbits
+  67               	usb_send_EP0:
+  68               	.LFB20:
+ 407:usb_hid.c     ****     uint8_t
+  69               		.loc 1 407 0
+  70               		.cfi_startproc
+  71               	.LVL9:
+  72 0000 BF92      		push r11
+  73               	.LCFI0:
+  74               		.cfi_def_cfa_offset 3
+  75               		.cfi_offset 11, -2
+  76 0002 CF92      		push r12
+  77               	.LCFI1:
+  78               		.cfi_def_cfa_offset 4
+  79               		.cfi_offset 12, -3
+  80 0004 DF92      		push r13
+  81               	.LCFI2:
+  82               		.cfi_def_cfa_offset 5
+  83               		.cfi_offset 13, -4
+  84 0006 EF92      		push r14
+  85               	.LCFI3:
+  86               		.cfi_def_cfa_offset 6
+  87               		.cfi_offset 14, -5
+  88 0008 FF92      		push r15
+  89               	.LCFI4:
+  90               		.cfi_def_cfa_offset 7
+  91               		.cfi_offset 15, -6
+  92 000a 0F93      		push r16
+  93               	.LCFI5:
+  94               		.cfi_def_cfa_offset 8
+  95               		.cfi_offset 16, -7
+  96 000c 1F93      		push r17
+  97               	.LCFI6:
+  98               		.cfi_def_cfa_offset 9
+  99               		.cfi_offset 17, -8
+ 100 000e CF93      		push r28
+ 101               	.LCFI7:
+ 102               		.cfi_def_cfa_offset 10
+ 103               		.cfi_offset 28, -9
+ 104 0010 DF93      		push r29
+ 105               	.LCFI8:
+ 106               		.cfi_def_cfa_offset 11
+ 107               		.cfi_offset 29, -10
+ 108               	/* prologue: function */
+ 109               	/* frame size = 0 */
+ 110               	/* stack size = 9 */
+ 111               	.L__stack_usage = 9
+ 112 0012 7C01      		movw r14,r24
+ 113 0014 D62F      		mov r29,r22
+ 114 0016 D42E      		mov r13,r20
+ 115               	.LBB24:
+ 116               	.LBB25:
+ 384:usb_hid.c     **** }
+ 117               		.loc 1 384 0
+ 118 0018 8EEF      		ldi r24,lo8(-2)
+ 119 001a B82E      		mov r11,r24
+ 120               	.LVL10:
+ 121               	.L10:
+ 122               	.LBE25:
+ 123               	.LBE24:
+ 417:usb_hid.c     **** 	}
+ 124               		.loc 1 417 0 discriminator 1
+ 125 001c 8091 E800 		lds r24,232
+ 126               	.LVL11:
+ 419:usb_hid.c     **** 
+ 127               		.loc 1 419 0 discriminator 1
+ 128 0020 982F      		mov r25,r24
+ 129 0022 9570      		andi r25,lo8(5)
+ 130 0024 01F0      		breq .L10
+ 421:usb_hid.c     **** 	    return ;				// Got OUT packet, abort
+ 131               		.loc 1 421 0
+ 132 0026 82FD      		sbrc r24,2
+ 133 0028 00C0      		rjmp .L8
+ 426:usb_hid.c     **** 
+ 134               		.loc 1 426 0
+ 135 002a CD2F      		mov r28,r29
+ 136 002c D134      		cpi r29,lo8(65)
+ 137 002e 00F0      		brlo .L12
+ 138 0030 C0E4      		ldi r28,lo8(64)
+ 139               	.L12:
+ 140               	.LVL12:
+ 428:usb_hid.c     **** 	    if ( where == IN_RAM )
+ 141               		.loc 1 428 0
+ 142 0032 CC2E      		mov r12,r28
+ 143 0034 8701      		movw r16,r14
+ 144               	.LVL13:
+ 145               	.L13:
+ 428:usb_hid.c     **** 	    if ( where == IN_RAM )
+ 146               		.loc 1 428 0 is_stmt 0 discriminator 1
+ 147 0036 CA94      		dec r12
+ 148               	.LVL14:
+ 149 0038 8FEF      		ldi r24,lo8(-1)
+ 150 003a C816      		cp r12,r24
+ 151 003c 01F0      		breq .L26
+ 429:usb_hid.c     **** 		UEDATX = *p ;
+ 152               		.loc 1 429 0 is_stmt 1
+ 153 003e D110      		cpse r13,__zero_reg__
+ 154 0040 00C0      		rjmp .L14
+ 430:usb_hid.c     **** 	    else
+ 155               		.loc 1 430 0
+ 156 0042 F801      		movw r30,r16
+ 157 0044 8081      		ld r24,Z
+ 158 0046 00C0      		rjmp .L25
+ 159               	.L14:
+ 432:usb_hid.c     **** 		UEDATX = pgm_read_byte( p ) ;
+ 160               		.loc 1 432 0
+ 161 0048 F1E0      		ldi r31,lo8(1)
+ 162 004a DF12      		cpse r13,r31
+ 163 004c 00C0      		rjmp .L16
+ 164               	.LVL15:
+ 165               	.LBB27:
+ 433:usb_hid.c     **** 	    else
+ 166               		.loc 1 433 0
+ 167 004e F801      		movw r30,r16
+ 168               	/* #APP */
+ 169               	 ;  433 "usb_hid.c" 1
+ 170 0050 8491      		lpm r24, Z
+ 171               		
+ 172               	 ;  0 "" 2
+ 173               	.LVL16:
+ 174               	/* #NOAPP */
+ 175 0052 00C0      		rjmp .L25
+ 176               	.LVL17:
+ 177               	.L16:
+ 178               	.LBE27:
+ 435:usb_hid.c     **** 		UEDATX = eeprom_read_byte( p ) ;
+ 179               		.loc 1 435 0
+ 180 0054 F2E0      		ldi r31,lo8(2)
+ 181 0056 DF12      		cpse r13,r31
+ 182 0058 00C0      		rjmp .L15
+ 436:usb_hid.c     **** 
+ 183               		.loc 1 436 0
+ 184 005a C801      		movw r24,r16
+ 185 005c 0E94 0000 		call eeprom_read_byte
+ 186               	.LVL18:
+ 187               	.L25:
+ 188 0060 8093 F100 		sts 241,r24
+ 189               	.L15:
+ 428:usb_hid.c     **** 	    if ( where == IN_RAM )
+ 190               		.loc 1 428 0 discriminator 2
+ 191 0064 0F5F      		subi r16,-1
+ 192 0066 1F4F      		sbci r17,-1
+ 193               	.LVL19:
+ 194 0068 00C0      		rjmp .L13
+ 195               	.L26:
+ 196 006a EC0E      		add r14,r28
+ 197 006c F11C      		adc r15,__zero_reg__
+ 198               	.LBB28:
+ 199               	.LBB26:
+ 384:usb_hid.c     **** }
+ 200               		.loc 1 384 0
+ 201 006e B092 E800 		sts 232,r11
+ 202               	.LBE26:
+ 203               	.LBE28:
+ 440:usb_hid.c     ****     }
+ 204               		.loc 1 440 0
+ 205 0072 DC1B      		sub r29,r28
+ 206               	.LVL20:
+ 442:usb_hid.c     **** }
+ 207               		.loc 1 442 0
+ 208 0074 01F4      		brne .L10
+ 442:usb_hid.c     **** }
+ 209               		.loc 1 442 0 is_stmt 0 discriminator 1
+ 210 0076 C034      		cpi r28,lo8(64)
+ 211 0078 01F0      		breq .L10
+ 212               	.LVL21:
+ 213               	.L8:
+ 214               	/* epilogue start */
+ 443:usb_hid.c     **** 
+ 215               		.loc 1 443 0 is_stmt 1
+ 216 007a DF91      		pop r29
+ 217               	.LVL22:
+ 218 007c CF91      		pop r28
+ 219 007e 1F91      		pop r17
+ 220 0080 0F91      		pop r16
+ 221 0082 FF90      		pop r15
+ 222 0084 EF90      		pop r14
+ 223 0086 DF90      		pop r13
+ 224               	.LVL23:
+ 225 0088 CF90      		pop r12
+ 226 008a BF90      		pop r11
+ 227 008c 0895      		ret
+ 228               		.cfi_endproc
+ 229               	.LFE20:
+ 231               		.section	.text.usb_init,"ax",@progbits
+ 232               	.global	usb_init
+ 234               	usb_init:
+ 235               	.LFB11:
+ 178:usb_hid.c     ****     chk_serial() ;
+ 236               		.loc 1 178 0
+ 237               		.cfi_startproc
+ 238 0000 CF93      		push r28
+ 239               	.LCFI9:
+ 240               		.cfi_def_cfa_offset 3
+ 241               		.cfi_offset 28, -2
+ 242 0002 DF93      		push r29
+ 243               	.LCFI10:
+ 244               		.cfi_def_cfa_offset 4
+ 245               		.cfi_offset 29, -3
+ 246               	/* prologue: function */
+ 247               	/* frame size = 0 */
+ 248               	/* stack size = 2 */
+ 249               	.L__stack_usage = 2
+ 250               	.LVL24:
+ 251               	.LBB32:
+ 252               	.LBB33:
+ 164:usb_hid.c     **** 	return ;
+ 253               		.loc 1 164 0
+ 254 0004 80E0      		ldi r24,0
+ 255 0006 90E0      		ldi r25,0
+ 256 0008 0E94 0000 		call eeprom_read_byte
+ 257               	.LVL25:
+ 258 000c 8A30      		cpi r24,lo8(10)
+ 259 000e 01F4      		brne .L28
+ 260               	.LVL26:
+ 261               	.L31:
+ 262               	.LBE33:
+ 263               	.LBE32:
+ 181:usb_hid.c     **** 
+ 264               		.loc 1 181 0
+ 265 0010 81E0      		ldi r24,lo8(1)
+ 266 0012 8093 D700 		sts 215,r24
+ 185:usb_hid.c     **** 
+ 267               		.loc 1 185 0
+ 268 0016 80EA      		ldi r24,lo8(-96)
+ 269 0018 8093 D800 		sts 216,r24
+ 189:usb_hid.c     **** 	;
+ 270               		.loc 1 189 0
+ 271 001c 82E1      		ldi r24,lo8(18)
+ 272 001e 89BD      		out 0x29,r24
+ 273 0020 00C0      		rjmp .L29
+ 274               	.LVL27:
+ 275               	.L28:
+ 276               	.LBB36:
+ 277               	.LBB35:
+ 164:usb_hid.c     **** 	return ;
+ 278               		.loc 1 164 0
+ 279 0022 C0E0      		ldi r28,0
+ 280 0024 D0E0      		ldi r29,0
+ 281               	.LVL28:
+ 282               	.L30:
+ 283               	.LBB34:
+ 168:usb_hid.c     **** }
+ 284               		.loc 1 168 0
+ 285 0026 FE01      		movw r30,r28
+ 286 0028 E050      		subi r30,lo8(-(usbStringDescSer))
+ 287 002a F040      		sbci r31,hi8(-(usbStringDescSer))
+ 288               	.LVL29:
+ 289               	/* #APP */
+ 290               	 ;  168 "usb_hid.c" 1
+ 291 002c 6491      		lpm r22, Z
+ 292               		
+ 293               	 ;  0 "" 2
+ 294               	.LVL30:
+ 295               	/* #NOAPP */
+ 296               	.LBE34:
+ 297 002e CE01      		movw r24,r28
+ 298 0030 0E94 0000 		call eeprom_write_byte
+ 299               	.LVL31:
+ 167:usb_hid.c     **** 	eeprom_write_byte( d, pgm_read_byte( s ) ) ;
+ 300               		.loc 1 167 0
+ 301 0034 2196      		adiw r28,1
+ 302               	.LVL32:
+ 303 0036 CA30      		cpi r28,10
+ 304 0038 D105      		cpc r29,__zero_reg__
+ 305 003a 01F4      		brne .L30
+ 306 003c 00C0      		rjmp .L31
+ 307               	.LVL33:
+ 308               	.L29:
+ 309               	.LBE35:
+ 310               	.LBE36:
+ 189:usb_hid.c     **** 	;
+ 311               		.loc 1 189 0 discriminator 2
+ 312 003e 09B4      		in __tmp_reg__,0x29
+ 313 0040 00FE      		sbrs __tmp_reg__,0
+ 314 0042 00C0      		rjmp .L29
+ 192:usb_hid.c     **** 
+ 315               		.loc 1 192 0
+ 316 0044 80E9      		ldi r24,lo8(-112)
+ 317 0046 8093 D800 		sts 216,r24
+ 194:usb_hid.c     **** 
+ 318               		.loc 1 194 0
+ 319 004a 1092 E000 		sts 224,__zero_reg__
+ 196:usb_hid.c     **** //	    _B1(SOFE) |			// SOF
+ 320               		.loc 1 196 0
+ 321 004e 89E0      		ldi r24,lo8(9)
+ 322 0050 8093 E200 		sts 226,r24
+ 323               	/* epilogue start */
+ 200:usb_hid.c     **** 
+ 324               		.loc 1 200 0
+ 325 0054 DF91      		pop r29
+ 326 0056 CF91      		pop r28
+ 327 0058 0895      		ret
+ 328               		.cfi_endproc
+ 329               	.LFE11:
+ 331               		.section	.text.usb_configured,"ax",@progbits
+ 332               	.global	usb_configured
+ 334               	usb_configured:
+ 335               	.LFB12:
+ 207:usb_hid.c     ****     uint8_t
+ 336               		.loc 1 207 0
+ 337               		.cfi_startproc
+ 338               	/* prologue: function */
+ 339               	/* frame size = 0 */
+ 340               	/* stack size = 0 */
+ 341               	.L__stack_usage = 0
+ 213:usb_hid.c     **** 
+ 342               		.loc 1 213 0
+ 343 0000 9FB7      		in r25,__SREG__
+ 344               	.LVL34:
+ 345               	/* #APP */
+ 346               	 ;  213 "usb_hid.c" 1
+ 347 0002 F894      		cli
+ 348               	 ;  0 "" 2
+ 215:usb_hid.c     **** 
+ 349               		.loc 1 215 0
+ 350               	/* #NOAPP */
+ 351 0004 8091 0000 		lds r24,usb_configuration
+ 352 0008 8823      		tst r24
+ 353 000a 01F0      		breq .L38
+ 215:usb_hid.c     **** 
+ 354               		.loc 1 215 0 is_stmt 0 discriminator 1
+ 355 000c 2091 0000 		lds r18,usb_suspend
+ 356 0010 81E0      		ldi r24,lo8(1)
+ 357 0012 2111      		cpse r18,__zero_reg__
+ 358               	.L38:
+ 215:usb_hid.c     **** 
+ 359               		.loc 1 215 0
+ 360 0014 80E0      		ldi r24,0
+ 361               	.L36:
+ 362               	.LVL35:
+ 217:usb_hid.c     **** }
+ 363               		.loc 1 217 0 is_stmt 1 discriminator 6
+ 364 0016 9FBF      		out __SREG__,r25
+ 218:usb_hid.c     **** 
+ 365               		.loc 1 218 0 discriminator 6
+ 366 0018 0895      		ret
+ 367               		.cfi_endproc
+ 368               	.LFE12:
+ 370               		.section	.text.usb_IN_busy,"ax",@progbits
+ 371               	.global	usb_IN_busy
+ 373               	usb_IN_busy:
+ 374               	.LFB13:
+ 225:usb_hid.c     ****     uint8_t
+ 375               		.loc 1 225 0
+ 376               		.cfi_startproc
+ 377               	/* prologue: function */
+ 378               	/* frame size = 0 */
+ 379               	/* stack size = 0 */
+ 380               	.L__stack_usage = 0
+ 231:usb_hid.c     **** 
+ 381               		.loc 1 231 0
+ 382 0000 9FB7      		in r25,__SREG__
+ 383               	.LVL36:
+ 384               	/* #APP */
+ 385               	 ;  231 "usb_hid.c" 1
+ 386 0002 F894      		cli
+ 387               	 ;  0 "" 2
+ 233:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 388               		.loc 1 233 0
+ 389               	/* #NOAPP */
+ 390 0004 8091 0000 		lds r24,usb_configuration
+ 391 0008 8823      		tst r24
+ 392 000a 01F0      		breq .L43
+ 233:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 393               		.loc 1 233 0 is_stmt 0 discriminator 1
+ 394 000c 8091 0000 		lds r24,usb_suspend
+ 395 0010 8823      		tst r24
+ 396 0012 01F0      		breq .L44
+ 397               	.L43:
+ 234:usb_hid.c     **** 
+ 398               		.loc 1 234 0 is_stmt 1
+ 399 0014 9FBF      		out __SREG__,r25
+ 400 0016 80E0      		ldi r24,0
+ 401 0018 0895      		ret
+ 402               	.L44:
+ 236:usb_hid.c     **** 
+ 403               		.loc 1 236 0
+ 404 001a 84E0      		ldi r24,lo8(4)
+ 405 001c 8093 E900 		sts 233,r24
+ 238:usb_hid.c     **** 
+ 406               		.loc 1 238 0
+ 407 0020 8091 E800 		lds r24,232
+ 408 0024 85FB      		bst r24,5
+ 409 0026 8827      		clr r24
+ 410 0028 80F9      		bld r24,0
+ 411               	.LVL37:
+ 240:usb_hid.c     **** }
+ 412               		.loc 1 240 0
+ 413 002a 9FBF      		out __SREG__,r25
+ 414 002c 91E0      		ldi r25,lo8(1)
+ 415               	.LVL38:
+ 416 002e 8927      		eor r24,r25
+ 417               	.LVL39:
+ 241:usb_hid.c     **** 
+ 418               		.loc 1 241 0
+ 419 0030 0895      		ret
+ 420               		.cfi_endproc
+ 421               	.LFE13:
+ 423               		.section	.text.usb_send_IN,"ax",@progbits
+ 424               	.global	usb_send_IN
+ 426               	usb_send_IN:
+ 427               	.LFB14:
+ 248:usb_hid.c     ****     CRITICAL_VAR() ;
+ 428               		.loc 1 248 0
+ 429               		.cfi_startproc
+ 430               	.LVL40:
+ 431               	/* prologue: function */
+ 432               	/* frame size = 0 */
+ 433               	/* stack size = 0 */
+ 434               	.L__stack_usage = 0
+ 251:usb_hid.c     **** 
+ 435               		.loc 1 251 0
+ 436 0000 2FB7      		in r18,__SREG__
+ 437               	.LVL41:
+ 438               	/* #APP */
+ 439               	 ;  251 "usb_hid.c" 1
+ 440 0002 F894      		cli
+ 441               	 ;  0 "" 2
+ 253:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 442               		.loc 1 253 0
+ 443               	/* #NOAPP */
+ 444 0004 3091 0000 		lds r19,usb_configuration
+ 445 0008 3323      		tst r19
+ 446 000a 01F0      		breq .L50
+ 253:usb_hid.c     **** 	EXIT_CRITICAL_RET( FALSE ) ;	// Pipe closed
+ 447               		.loc 1 253 0 is_stmt 0 discriminator 1
+ 448 000c 3091 0000 		lds r19,usb_suspend
+ 449 0010 3323      		tst r19
+ 450 0012 01F0      		breq .L51
+ 451               	.L50:
+ 254:usb_hid.c     **** 
+ 452               		.loc 1 254 0 is_stmt 1
+ 453 0014 2FBF      		out __SREG__,r18
+ 454 0016 80E0      		ldi r24,0
+ 455               	.LVL42:
+ 456 0018 0895      		ret
+ 457               	.LVL43:
+ 458               	.L51:
+ 256:usb_hid.c     **** 
+ 459               		.loc 1 256 0
+ 460 001a 34E0      		ldi r19,lo8(4)
+ 461 001c 3093 E900 		sts 233,r19
+ 462 0020 FC01      		movw r30,r24
+ 463               	.LVL44:
+ 464               	.L53:
+ 285:usb_hid.c     **** 	UEDATX = *data++ ;
+ 465               		.loc 1 285 0
+ 466               	.LVL45:
+ 467 0022 6150      		subi r22,1
+ 468 0024 00F0      		brcs .L58
+ 286:usb_hid.c     **** 
+ 469               		.loc 1 286 0
+ 470 0026 8191      		ld r24,Z+
+ 471               	.LVL46:
+ 472 0028 8093 F100 		sts 241,r24
+ 473 002c 00C0      		rjmp .L53
+ 474               	.L58:
+ 288:usb_hid.c     **** 	  _B0(FIFOCON)			// Send FIFO data & switch bank
+ 475               		.loc 1 288 0
+ 476 002e 8AE1      		ldi r24,lo8(26)
+ 477 0030 8093 E800 		sts 232,r24
+ 298:usb_hid.c     **** }
+ 478               		.loc 1 298 0
+ 479 0034 2FBF      		out __SREG__,r18
+ 480 0036 81E0      		ldi r24,lo8(1)
+ 299:usb_hid.c     **** 
+ 481               		.loc 1 299 0
+ 482 0038 0895      		ret
+ 483               		.cfi_endproc
+ 484               	.LFE14:
+ 486               		.section	.text.__vector_10,"ax",@progbits
+ 487               	.global	__vector_10
+ 489               	__vector_10:
+ 490               	.LFB15:
+ 308:usb_hid.c     ****     uint8_t
+ 491               		.loc 1 308 0
+ 492               		.cfi_startproc
+ 493 0000 1F92      		push r1
+ 494               	.LCFI11:
+ 495               		.cfi_def_cfa_offset 3
+ 496               		.cfi_offset 1, -2
+ 497 0002 0F92      		push r0
+ 498               	.LCFI12:
+ 499               		.cfi_def_cfa_offset 4
+ 500               		.cfi_offset 0, -3
+ 501 0004 0FB6      		in r0,__SREG__
+ 502 0006 0F92      		push r0
+ 503 0008 1124      		clr __zero_reg__
+ 504 000a 8F93      		push r24
+ 505               	.LCFI13:
+ 506               		.cfi_def_cfa_offset 5
+ 507               		.cfi_offset 24, -4
+ 508 000c 9F93      		push r25
+ 509               	.LCFI14:
+ 510               		.cfi_def_cfa_offset 6
+ 511               		.cfi_offset 25, -5
+ 512               	/* prologue: Signal */
+ 513               	/* frame size = 0 */
+ 514               	/* stack size = 5 */
+ 515               	.L__stack_usage = 5
+ 312:usb_hid.c     ****     UDINT   = 0 ;
+ 516               		.loc 1 312 0
+ 517 000e 8091 E100 		lds r24,225
+ 518               	.LVL47:
+ 313:usb_hid.c     **** 
+ 519               		.loc 1 313 0
+ 520 0012 1092 E100 		sts 225,__zero_reg__
+ 315:usb_hid.c     ****     {
+ 521               		.loc 1 315 0
+ 522 0016 83FF      		sbrs r24,3
+ 523 0018 00C0      		rjmp .L60
+ 317:usb_hid.c     **** 	UECONX  = 1 ;
+ 524               		.loc 1 317 0
+ 525 001a 1092 E900 		sts 233,__zero_reg__
+ 318:usb_hid.c     **** 	UECFG0X = EP_TYPE_CONTROL ;
+ 526               		.loc 1 318 0
+ 527 001e 81E0      		ldi r24,lo8(1)
+ 528               	.LVL48:
+ 529 0020 8093 EB00 		sts 235,r24
+ 319:usb_hid.c     **** 	UECFG1X = EP_SIZE( ENDPOINT0_SIZE ) | EP_SINGLE_BUFFER ;
+ 530               		.loc 1 319 0
+ 531 0024 1092 EC00 		sts 236,__zero_reg__
+ 320:usb_hid.c     **** 	UEIENX  = _BV( RXSTPE ) ;
+ 532               		.loc 1 320 0
+ 533 0028 82E3      		ldi r24,lo8(50)
+ 534 002a 8093 ED00 		sts 237,r24
+ 321:usb_hid.c     **** 
+ 535               		.loc 1 321 0
+ 536 002e 88E0      		ldi r24,lo8(8)
+ 537 0030 8093 F000 		sts 240,r24
+ 323:usb_hid.c     **** 	usb_suspend = FALSE ;
+ 538               		.loc 1 323 0
+ 539 0034 1092 0000 		sts usb_configuration,__zero_reg__
+ 540 0038 00C0      		rjmp .L80
+ 541               	.LVL49:
+ 542               	.L60:
+ 329:usb_hid.c     ****     {
+ 543               		.loc 1 329 0
+ 544 003a 9091 0000 		lds r25,usb_configuration
+ 545 003e 9923      		tst r25
+ 546 0040 01F0      		breq .L59
+ 331:usb_hid.c     **** 	{
+ 547               		.loc 1 331 0
+ 548 0042 80FF      		sbrs r24,0
+ 549 0044 00C0      		rjmp .L63
+ 331:usb_hid.c     **** 	{
+ 550               		.loc 1 331 0 is_stmt 0 discriminator 1
+ 551 0046 9091 E200 		lds r25,226
+ 552 004a 90FF      		sbrs r25,0
+ 553 004c 00C0      		rjmp .L63
+ 335:usb_hid.c     **** 	    set_bit( UDIEN, WAKEUPE ) ;		// Enable wakeup IRQ
+ 554               		.loc 1 335 0 is_stmt 1
+ 555 004e 9091 E200 		lds r25,226
+ 556 0052 9E7F      		andi r25,lo8(-2)
+ 557 0054 9093 E200 		sts 226,r25
+ 336:usb_hid.c     **** 
+ 558               		.loc 1 336 0
+ 559 0058 9091 E200 		lds r25,226
+ 560 005c 9061      		ori r25,lo8(16)
+ 561 005e 9093 E200 		sts 226,r25
+ 338:usb_hid.c     **** 	    clr_bit( PLLCSR, PLLE ) ;		// Stop PLL
+ 562               		.loc 1 338 0
+ 563 0062 9091 D800 		lds r25,216
+ 564 0066 9062      		ori r25,lo8(32)
+ 565 0068 9093 D800 		sts 216,r25
+ 339:usb_hid.c     **** 
+ 566               		.loc 1 339 0
+ 567 006c 99B5      		in r25,0x29
+ 568 006e 9D7F      		andi r25,lo8(-3)
+ 569 0070 99BD      		out 0x29,r25
+ 341:usb_hid.c     **** 	}
+ 570               		.loc 1 341 0
+ 571 0072 91E0      		ldi r25,lo8(1)
+ 572 0074 9093 0000 		sts usb_suspend,r25
+ 573               	.L63:
+ 344:usb_hid.c     **** 	{
+ 574               		.loc 1 344 0
+ 575 0078 84FF      		sbrs r24,4
+ 576 007a 00C0      		rjmp .L59
+ 344:usb_hid.c     **** 	{
+ 577               		.loc 1 344 0 is_stmt 0 discriminator 1
+ 578 007c 8091 E200 		lds r24,226
+ 579               	.LVL50:
+ 580 0080 84FF      		sbrs r24,4
+ 581 0082 00C0      		rjmp .L59
+ 348:usb_hid.c     **** 		;				// Start PLL
+ 582               		.loc 1 348 0 is_stmt 1
+ 583 0084 89B5      		in r24,0x29
+ 584 0086 8260      		ori r24,lo8(2)
+ 585 0088 89BD      		out 0x29,r24
+ 586               	.L65:
+ 348:usb_hid.c     **** 		;				// Start PLL
+ 587               		.loc 1 348 0 is_stmt 0 discriminator 2
+ 588 008a 09B4      		in __tmp_reg__,0x29
+ 589 008c 00FE      		sbrs __tmp_reg__,0
+ 590 008e 00C0      		rjmp .L65
+ 351:usb_hid.c     **** 
+ 591               		.loc 1 351 0 is_stmt 1
+ 592 0090 8091 D800 		lds r24,216
+ 593 0094 8F7D      		andi r24,lo8(-33)
+ 594 0096 8093 D800 		sts 216,r24
+ 353:usb_hid.c     **** 	    clr_bit( UDIEN, WAKEUPE ) ;		// Disable wakeup IRQ
+ 595               		.loc 1 353 0
+ 596 009a 8091 E200 		lds r24,226
+ 597 009e 8160      		ori r24,lo8(1)
+ 598 00a0 8093 E200 		sts 226,r24
+ 354:usb_hid.c     **** 
+ 599               		.loc 1 354 0
+ 600 00a4 8091 E200 		lds r24,226
+ 601 00a8 8F7E      		andi r24,lo8(-17)
+ 602 00aa 8093 E200 		sts 226,r24
+ 603               	.L80:
+ 356:usb_hid.c     **** 	}
+ 604               		.loc 1 356 0
+ 605 00ae 1092 0000 		sts usb_suspend,__zero_reg__
+ 606               	.L59:
+ 607               	/* epilogue start */
+ 366:usb_hid.c     **** 
+ 608               		.loc 1 366 0
+ 609 00b2 9F91      		pop r25
+ 610 00b4 8F91      		pop r24
+ 611 00b6 0F90      		pop r0
+ 612 00b8 0FBE      		out __SREG__,r0
+ 613 00ba 0F90      		pop r0
+ 614 00bc 1F90      		pop r1
+ 615 00be 1895      		reti
+ 616               		.cfi_endproc
+ 617               	.LFE15:
+ 619               		.section	.text.__vector_11,"ax",@progbits
+ 620               	.global	__vector_11
+ 622               	__vector_11:
+ 623               	.LFB22:
+ 460:usb_hid.c     **** 
+ 461:usb_hid.c     **** //------------------------------------------------------------------------------
+ 462:usb_hid.c     **** 
+ 463:usb_hid.c     **** // USB Endpoint Interrupt - endpoint 0 is handled here.
+ 464:usb_hid.c     **** 
+ 465:usb_hid.c     **** ISR( USB_COM_vect )
+ 466:usb_hid.c     **** {
+ 624               		.loc 1 466 0
+ 625               		.cfi_startproc
+ 626 0000 1F92      		push r1
+ 627               	.LCFI15:
+ 628               		.cfi_def_cfa_offset 3
+ 629               		.cfi_offset 1, -2
+ 630 0002 0F92      		push r0
+ 631               	.LCFI16:
+ 632               		.cfi_def_cfa_offset 4
+ 633               		.cfi_offset 0, -3
+ 634 0004 0FB6      		in r0,__SREG__
+ 635 0006 0F92      		push r0
+ 636 0008 1124      		clr __zero_reg__
+ 637 000a 0F93      		push r16
+ 638               	.LCFI17:
+ 639               		.cfi_def_cfa_offset 5
+ 640               		.cfi_offset 16, -4
+ 641 000c 1F93      		push r17
+ 642               	.LCFI18:
+ 643               		.cfi_def_cfa_offset 6
+ 644               		.cfi_offset 17, -5
+ 645 000e 2F93      		push r18
+ 646               	.LCFI19:
+ 647               		.cfi_def_cfa_offset 7
+ 648               		.cfi_offset 18, -6
+ 649 0010 3F93      		push r19
+ 650               	.LCFI20:
+ 651               		.cfi_def_cfa_offset 8
+ 652               		.cfi_offset 19, -7
+ 653 0012 4F93      		push r20
+ 654               	.LCFI21:
+ 655               		.cfi_def_cfa_offset 9
+ 656               		.cfi_offset 20, -8
+ 657 0014 5F93      		push r21
+ 658               	.LCFI22:
+ 659               		.cfi_def_cfa_offset 10
+ 660               		.cfi_offset 21, -9
+ 661 0016 6F93      		push r22
+ 662               	.LCFI23:
+ 663               		.cfi_def_cfa_offset 11
+ 664               		.cfi_offset 22, -10
+ 665 0018 7F93      		push r23
+ 666               	.LCFI24:
+ 667               		.cfi_def_cfa_offset 12
+ 668               		.cfi_offset 23, -11
+ 669 001a 8F93      		push r24
+ 670               	.LCFI25:
+ 671               		.cfi_def_cfa_offset 13
+ 672               		.cfi_offset 24, -12
+ 673 001c 9F93      		push r25
+ 674               	.LCFI26:
+ 675               		.cfi_def_cfa_offset 14
+ 676               		.cfi_offset 25, -13
+ 677 001e AF93      		push r26
+ 678               	.LCFI27:
+ 679               		.cfi_def_cfa_offset 15
+ 680               		.cfi_offset 26, -14
+ 681 0020 BF93      		push r27
+ 682               	.LCFI28:
+ 683               		.cfi_def_cfa_offset 16
+ 684               		.cfi_offset 27, -15
+ 685 0022 CF93      		push r28
+ 686               	.LCFI29:
+ 687               		.cfi_def_cfa_offset 17
+ 688               		.cfi_offset 28, -16
+ 689 0024 DF93      		push r29
+ 690               	.LCFI30:
+ 691               		.cfi_def_cfa_offset 18
+ 692               		.cfi_offset 29, -17
+ 693 0026 EF93      		push r30
+ 694               	.LCFI31:
+ 695               		.cfi_def_cfa_offset 19
+ 696               		.cfi_offset 30, -18
+ 697 0028 FF93      		push r31
+ 698               	.LCFI32:
+ 699               		.cfi_def_cfa_offset 20
+ 700               		.cfi_offset 31, -19
+ 701               	/* prologue: Signal */
+ 702               	/* frame size = 0 */
+ 703               	/* stack size = 19 */
+ 704               	.L__stack_usage = 19
+ 467:usb_hid.c     ****     uint16_t
+ 468:usb_hid.c     **** 	wValue, wIndex, wLength ;
+ 469:usb_hid.c     ****     uint8_t
+ 470:usb_hid.c     **** 	bmRequestType, bRequest,
+ 471:usb_hid.c     **** 	i, n,
+ 472:usb_hid.c     **** 	*p ;
+ 473:usb_hid.c     **** 
+ 474:usb_hid.c     ****     UENUM = 0 ;				// Select EP0
+ 705               		.loc 1 474 0
+ 706 002a 1092 E900 		sts 233,__zero_reg__
+ 475:usb_hid.c     **** 
+ 476:usb_hid.c     ****     i = UEINTX ;
+ 707               		.loc 1 476 0
+ 708 002e 8091 E800 		lds r24,232
+ 709               	.LVL51:
+ 477:usb_hid.c     **** 
+ 478:usb_hid.c     ****     if ( i & _BV( RXSTPI ) )
+ 710               		.loc 1 478 0
+ 711 0032 83FF      		sbrs r24,3
+ 712 0034 00C0      		rjmp .L82
+ 479:usb_hid.c     ****     {
+ 480:usb_hid.c     **** 	bmRequestType = UEDATX ;
+ 713               		.loc 1 480 0
+ 714 0036 9091 F100 		lds r25,241
+ 715               	.LVL52:
+ 481:usb_hid.c     **** 	bRequest      = UEDATX ;
+ 716               		.loc 1 481 0
+ 717 003a 8091 F100 		lds r24,241
+ 718               	.LVL53:
+ 482:usb_hid.c     **** 
+ 483:usb_hid.c     **** 	wValue   =  UEDATX ;
+ 719               		.loc 1 483 0
+ 720 003e C091 F100 		lds r28,241
+ 721               	.LVL54:
+ 484:usb_hid.c     **** 	wValue  |= (UEDATX << 8) ;
+ 722               		.loc 1 484 0
+ 723 0042 2091 F100 		lds r18,241
+ 724 0046 D0E0      		ldi r29,0
+ 725 0048 D22B      		or r29,r18
+ 726               	.LVL55:
+ 485:usb_hid.c     **** 
+ 486:usb_hid.c     **** 	wIndex   =  UEDATX ;
+ 727               		.loc 1 486 0
+ 728 004a 2091 F100 		lds r18,241
+ 729               	.LVL56:
+ 487:usb_hid.c     **** 	wIndex  |= (UEDATX << 8) ;
+ 730               		.loc 1 487 0
+ 731 004e 4091 F100 		lds r20,241
+ 732               	.LVL57:
+ 488:usb_hid.c     **** 
+ 489:usb_hid.c     **** 	wLength  =  UEDATX ;
+ 733               		.loc 1 489 0
+ 734 0052 1091 F100 		lds r17,241
+ 735               	.LVL58:
+ 490:usb_hid.c     **** 	wLength |= (UEDATX << 8) ;
+ 736               		.loc 1 490 0
+ 737 0056 0091 F100 		lds r16,241
+ 491:usb_hid.c     **** 
+ 492:usb_hid.c     **** 	UEINTX = ~(_BV( RXSTPI ) | _BV( RXOUTI ) | _BV( TXINI )) ;
+ 738               		.loc 1 492 0
+ 739 005a 32EF      		ldi r19,lo8(-14)
+ 740 005c 3093 E800 		sts 232,r19
+ 493:usb_hid.c     **** 
+ 494:usb_hid.c     **** 	if ( bRequest == GET_DESCRIPTOR )
+ 741               		.loc 1 494 0
+ 742 0060 8630      		cpi r24,lo8(6)
+ 743 0062 01F0      		breq .+2
+ 744 0064 00C0      		rjmp .L83
+ 495:usb_hid.c     **** 	{
+ 496:usb_hid.c     **** 	    if ( ! (p = lookup( wValue, M_IF_C(wIndex) str_descriptors, ARRSZ( str_descriptors ) )) )
+ 745               		.loc 1 496 0
+ 746 0066 46E0      		ldi r20,lo8(6)
+ 747               	.LVL59:
+ 748 0068 60E0      		ldi r22,lo8(str_descriptors)
+ 749 006a 70E0      		ldi r23,hi8(str_descriptors)
+ 750 006c CE01      		movw r24,r28
+ 751               	.LVL60:
+ 752 006e 0E94 0000 		call lookup
+ 753               	.LVL61:
+ 754 0072 0097      		sbiw r24,0
+ 755 0074 01F4      		brne .L84
+ 497:usb_hid.c     **** 	    {
+ 498:usb_hid.c     **** 		if ( sw_id == SW_ID_3DP )
+ 756               		.loc 1 498 0
+ 757 0076 8091 0000 		lds r24,sw_id
+ 758               	.LVL62:
+ 759 007a 8130      		cpi r24,lo8(1)
+ 760 007c 01F4      		brne .L85
+ 499:usb_hid.c     **** 		    p = lookup( wValue, M_IF_C(wIndex) cfg_descriptors_3DP, ARRSZ( cfg_descriptors_3DP ) ) ;
+ 761               		.loc 1 499 0
+ 762 007e 44E0      		ldi r20,lo8(4)
+ 763 0080 60E0      		ldi r22,lo8(cfg_descriptors_3DP)
+ 764 0082 70E0      		ldi r23,hi8(cfg_descriptors_3DP)
+ 765 0084 00C0      		rjmp .L138
+ 766               	.L85:
+ 500:usb_hid.c     **** 		else
+ 501:usb_hid.c     **** 		if ( sw_id == SW_ID_PP )
+ 767               		.loc 1 501 0
+ 768 0086 8230      		cpi r24,lo8(2)
+ 769 0088 01F4      		brne .L87
+ 502:usb_hid.c     **** 		    p = lookup( wValue, M_IF_C(wIndex) cfg_descriptors_PP,  ARRSZ( cfg_descriptors_PP ) ) ;
+ 770               		.loc 1 502 0
+ 771 008a 44E0      		ldi r20,lo8(4)
+ 772 008c 60E0      		ldi r22,lo8(cfg_descriptors_PP)
+ 773 008e 70E0      		ldi r23,hi8(cfg_descriptors_PP)
+ 774 0090 00C0      		rjmp .L138
+ 775               	.L87:
+ 503:usb_hid.c     **** 		else
+ 504:usb_hid.c     **** 		if ( sw_id == SW_ID_FFP )
+ 776               		.loc 1 504 0
+ 777 0092 8330      		cpi r24,lo8(3)
+ 778 0094 01F0      		breq .+2
+ 779 0096 00C0      		rjmp .L82
+ 505:usb_hid.c     **** 		    p = lookup( wValue, M_IF_C(wIndex) cfg_descriptors_FFP, ARRSZ( cfg_descriptors_FFP ) ) ;
+ 780               		.loc 1 505 0
+ 781 0098 44E0      		ldi r20,lo8(4)
+ 782 009a 60E0      		ldi r22,lo8(cfg_descriptors_FFP)
+ 783 009c 70E0      		ldi r23,hi8(cfg_descriptors_FFP)
+ 784               	.L138:
+ 785 009e CE01      		movw r24,r28
+ 786 00a0 0E94 0000 		call lookup
+ 787               	.LVL63:
+ 506:usb_hid.c     **** 
+ 507:usb_hid.c     **** 		if ( ! p )
+ 788               		.loc 1 507 0
+ 789 00a4 0097      		sbiw r24,0
+ 790 00a6 01F4      		brne .+2
+ 791 00a8 00C0      		rjmp .L82
+ 792               	.L84:
+ 490:usb_hid.c     **** 
+ 793               		.loc 1 490 0
+ 794 00aa 612F      		mov r22,r17
+ 795 00ac 70E0      		ldi r23,0
+ 796 00ae 702B      		or r23,r16
+ 797               	.LVL64:
+ 798               	.LBB57:
+ 508:usb_hid.c     **** 		{
+ 509:usb_hid.c     **** 		    UECONX = _BV( STALLRQ ) | _BV( EPEN ) ; // stall
+ 510:usb_hid.c     **** 		    return ;
+ 511:usb_hid.c     **** 		}
+ 512:usb_hid.c     **** 	    }
+ 513:usb_hid.c     **** 
+ 514:usb_hid.c     **** 	  #if defined(LARGE_DESC)
+ 515:usb_hid.c     **** 	    // Get length and start address
+ 516:usb_hid.c     **** 
+ 517:usb_hid.c     **** 	    wIndex = pgm_read_word( &((descriptor_list_t *)p)->length ) ;
+ 518:usb_hid.c     **** 
+ 519:usb_hid.c     **** 	    if ( wLength > wIndex )
+ 520:usb_hid.c     **** 		wLength = wIndex ;
+ 521:usb_hid.c     **** 
+ 522:usb_hid.c     **** 	    n = pgm_read_byte( &((descriptor_list_t *)p)->where ) ;
+ 523:usb_hid.c     **** 
+ 524:usb_hid.c     **** 	    p = VP( pgm_read_word( &((descriptor_list_t *)p)->addr ) ) ;
+ 525:usb_hid.c     **** 
+ 526:usb_hid.c     **** 	    usb_send_EP0( p, wLength, n ) ;
+ 527:usb_hid.c     **** 	  #else
+ 528:usb_hid.c     **** 	    // Get length and start address
+ 529:usb_hid.c     **** 
+ 530:usb_hid.c     **** 	    n = pgm_read_byte( &((descriptor_list_t *)p)->length ) ;
+ 799               		.loc 1 530 0
+ 800 00b0 FC01      		movw r30,r24
+ 801 00b2 3596      		adiw r30,5
+ 802               	.LVL65:
+ 803               	/* #APP */
+ 804               	 ;  530 "usb_hid.c" 1
+ 805 00b4 2491      		lpm r18, Z
+ 806               		
+ 807               	 ;  0 "" 2
+ 808               	.LVL66:
+ 809               	/* #NOAPP */
+ 810               	.LBE57:
+ 531:usb_hid.c     **** 
+ 532:usb_hid.c     **** 	    // Note: code limits max. descriptor size to 255
+ 533:usb_hid.c     **** 
+ 534:usb_hid.c     **** 	    if ( wLength & 0xFF00 )
+ 811               		.loc 1 534 0
+ 812 00b6 AB01      		movw r20,r22
+ 813 00b8 4427      		clr r20
+ 814 00ba 452B      		or r20,r21
+ 815 00bc 01F0      		breq .L91
+ 535:usb_hid.c     **** 		i = 255 ;
+ 816               		.loc 1 535 0
+ 817 00be 6FEF      		ldi r22,lo8(-1)
+ 818               	.L91:
+ 819               	.LVL67:
+ 820               	.LBB58:
+ 536:usb_hid.c     **** 	    else
+ 537:usb_hid.c     **** 		i = wLength ;
+ 538:usb_hid.c     **** 
+ 539:usb_hid.c     **** 	    if ( i > n )
+ 540:usb_hid.c     **** 		i = n ;
+ 541:usb_hid.c     **** 
+ 542:usb_hid.c     **** 	    n = pgm_read_byte( &((descriptor_list_t *)p)->where ) ;
+ 821               		.loc 1 542 0
+ 822 00c0 FC01      		movw r30,r24
+ 823               	.LVL68:
+ 824 00c2 3496      		adiw r30,4
+ 825               	.LVL69:
+ 826               	/* #APP */
+ 827               	 ;  542 "usb_hid.c" 1
+ 828 00c4 4491      		lpm r20, Z
+ 829               		
+ 830               	 ;  0 "" 2
+ 831               	.LVL70:
+ 832               	/* #NOAPP */
+ 833               	.LBE58:
+ 834               	.LBB59:
+ 543:usb_hid.c     **** 
+ 544:usb_hid.c     **** 	    p = VP( pgm_read_word( &((descriptor_list_t *)p)->addr ) ) ;
+ 835               		.loc 1 544 0
+ 836 00c6 0296      		adiw r24,2
+ 837               	.LVL71:
+ 838 00c8 FC01      		movw r30,r24
+ 839               	.LVL72:
+ 840               	/* #APP */
+ 841               	 ;  544 "usb_hid.c" 1
+ 842 00ca 8591      		lpm r24, Z+
+ 843 00cc 9491      		lpm r25, Z
+ 844               		
+ 845               	 ;  0 "" 2
+ 846               	.LVL73:
+ 847               	/* #NOAPP */
+ 848               	.LBE59:
+ 545:usb_hid.c     **** 
+ 546:usb_hid.c     **** 	    usb_send_EP0( p, i, n ) ;
+ 849               		.loc 1 546 0
+ 850 00ce 2617      		cp r18,r22
+ 851 00d0 00F0      		brlo .+2
+ 852 00d2 00C0      		rjmp .L141
+ 853 00d4 622F      		mov r22,r18
+ 854               	.LVL74:
+ 855 00d6 00C0      		rjmp .L141
+ 856               	.LVL75:
+ 857               	.L83:
+ 547:usb_hid.c     **** 	  #endif
+ 548:usb_hid.c     **** 
+ 549:usb_hid.c     **** 	    return ;
+ 550:usb_hid.c     **** 	}
+ 551:usb_hid.c     **** 
+ 552:usb_hid.c     **** 	if ( bRequest == SET_ADDRESS )
+ 858               		.loc 1 552 0
+ 859 00d8 8530      		cpi r24,lo8(5)
+ 860 00da 01F4      		brne .L93
+ 861               	.LBB60:
+ 862               	.LBB61:
+ 384:usb_hid.c     **** }
+ 863               		.loc 1 384 0
+ 864 00dc 8EEF      		ldi r24,lo8(-2)
+ 865               	.LVL76:
+ 866 00de 8093 E800 		sts 232,r24
+ 867               	.L94:
+ 868               	.LBE61:
+ 869               	.LBE60:
+ 870               	.LBB62:
+ 871               	.LBB63:
+ 376:usb_hid.c     **** 	;
+ 872               		.loc 1 376 0
+ 873 00e2 8091 E800 		lds r24,232
+ 874 00e6 80FF      		sbrs r24,0
+ 875 00e8 00C0      		rjmp .L94
+ 876               	.LBE63:
+ 877               	.LBE62:
+ 553:usb_hid.c     **** 	{
+ 554:usb_hid.c     **** 	    usb_send_in() ;			// Ack via ZLP
+ 555:usb_hid.c     **** 	    usb_wait_in_ready() ;		// Wait until ZLP sent
+ 556:usb_hid.c     **** 
+ 557:usb_hid.c     **** 	    UDADDR = wValue | _BV( ADDEN ) ;	// Set & enable USB address
+ 878               		.loc 1 557 0
+ 879 00ea C068      		ori r28,lo8(-128)
+ 880               	.LVL77:
+ 881 00ec C093 E300 		sts 227,r28
+ 558:usb_hid.c     **** 
+ 559:usb_hid.c     **** 	    return ;
+ 882               		.loc 1 559 0
+ 883 00f0 00C0      		rjmp .L81
+ 884               	.LVL78:
+ 885               	.L93:
+ 560:usb_hid.c     **** 	}
+ 561:usb_hid.c     **** 
+ 562:usb_hid.c     **** 	if ( bRequest == SET_CONFIGURATION && bmRequestType == 0 )
+ 886               		.loc 1 562 0
+ 887 00f2 8930      		cpi r24,lo8(9)
+ 888 00f4 01F4      		brne .L95
+ 889               		.loc 1 562 0 is_stmt 0 discriminator 1
+ 890 00f6 9111      		cpse r25,__zero_reg__
+ 891 00f8 00C0      		rjmp .L82
+ 892               	.LBB64:
+ 893               	.LBB65:
+ 384:usb_hid.c     **** }
+ 894               		.loc 1 384 0 is_stmt 1
+ 895 00fa 8EEF      		ldi r24,lo8(-2)
+ 896               	.LVL79:
+ 897 00fc 8093 E800 		sts 232,r24
+ 898               	.LBE65:
+ 899               	.LBE64:
+ 563:usb_hid.c     **** 	{
+ 564:usb_hid.c     **** 	    usb_send_in() ;			// Ack via ZLP
+ 565:usb_hid.c     **** 
+ 566:usb_hid.c     **** 	    usb_configuration = wValue ;	// Remember configuration
+ 900               		.loc 1 566 0
+ 901 0100 C093 0000 		sts usb_configuration,r28
+ 902               	.LVL80:
+ 567:usb_hid.c     **** 
+ 568:usb_hid.c     **** 	    p = VP( endpoint_config_table ) ;
+ 903               		.loc 1 568 0
+ 904 0104 80E0      		ldi r24,lo8(endpoint_config_table)
+ 905 0106 90E0      		ldi r25,hi8(endpoint_config_table)
+ 569:usb_hid.c     **** 
+ 570:usb_hid.c     **** 	    for ( i = 1 ; i <= MAX_ENDPOINT ; ++i )
+ 906               		.loc 1 570 0
+ 907 0108 41E0      		ldi r20,lo8(1)
+ 908               	.LVL81:
+ 909               	.L97:
+ 571:usb_hid.c     **** 	    {
+ 572:usb_hid.c     **** 		UENUM = i ;			// Select EP
+ 910               		.loc 1 572 0
+ 911 010a 4093 E900 		sts 233,r20
+ 912               	.LBB66:
+ 573:usb_hid.c     **** 
+ 574:usb_hid.c     **** 		n = pgm_read_byte( p++ ) ;
+ 913               		.loc 1 574 0
+ 914 010e 9C01      		movw r18,r24
+ 915 0110 2F5F      		subi r18,-1
+ 916 0112 3F4F      		sbci r19,-1
+ 917               	.LVL82:
+ 918 0114 FC01      		movw r30,r24
+ 919               	/* #APP */
+ 920               	 ;  574 "usb_hid.c" 1
+ 921 0116 5491      		lpm r21, Z
+ 922               		
+ 923               	 ;  0 "" 2
+ 924               	.LVL83:
+ 925               	/* #NOAPP */
+ 926               	.LBE66:
+ 575:usb_hid.c     **** 
+ 576:usb_hid.c     **** 		UECONX = n ;
+ 927               		.loc 1 576 0
+ 928 0118 5093 EB00 		sts 235,r21
+ 577:usb_hid.c     **** 
+ 578:usb_hid.c     **** 		if ( n )			// If enabled,
+ 929               		.loc 1 578 0
+ 930 011c 5523      		tst r21
+ 931 011e 01F0      		breq .L96
+ 932               	.LVL84:
+ 933               	.LBB67:
+ 579:usb_hid.c     **** 		{				// configure EP
+ 580:usb_hid.c     **** 		    UECFG0X = pgm_read_byte( p++ ) ;
+ 934               		.loc 1 580 0
+ 935 0120 F901      		movw r30,r18
+ 936               	/* #APP */
+ 937               	 ;  580 "usb_hid.c" 1
+ 938 0122 2491      		lpm r18, Z
+ 939               		
+ 940               	 ;  0 "" 2
+ 941               	.LVL85:
+ 942               	/* #NOAPP */
+ 943               	.LBE67:
+ 944 0124 2093 EC00 		sts 236,r18
+ 945               	.LBB68:
+ 581:usb_hid.c     **** 		    UECFG1X = pgm_read_byte( p++ ) ;
+ 946               		.loc 1 581 0
+ 947 0128 9C01      		movw r18,r24
+ 948               	.LVL86:
+ 949 012a 2D5F      		subi r18,-3
+ 950 012c 3F4F      		sbci r19,-1
+ 951               	.LVL87:
+ 952               	.LBE68:
+ 953               	.LBB69:
+ 580:usb_hid.c     **** 		    UECFG1X = pgm_read_byte( p++ ) ;
+ 954               		.loc 1 580 0
+ 955 012e 3196      		adiw r30,1
+ 956               	.LVL88:
+ 957               	.LBE69:
+ 958               	.LBB70:
+ 959               		.loc 1 581 0
+ 960               	/* #APP */
+ 961               	 ;  581 "usb_hid.c" 1
+ 962 0130 E491      		lpm r30, Z
+ 963               		
+ 964               	 ;  0 "" 2
+ 965               	.LVL89:
+ 966               	/* #NOAPP */
+ 967               	.LBE70:
+ 968 0132 E093 ED00 		sts 237,r30
+ 969               	.LVL90:
+ 970               	.L96:
+ 570:usb_hid.c     **** 	    {
+ 971               		.loc 1 570 0 discriminator 2
+ 972 0136 4F5F      		subi r20,lo8(-(1))
+ 973               	.LVL91:
+ 974 0138 4730      		cpi r20,lo8(7)
+ 975 013a 01F0      		breq .L144
+ 976 013c C901      		movw r24,r18
+ 977               	.LVL92:
+ 978 013e 00C0      		rjmp .L97
+ 979               	.LVL93:
+ 980               	.L144:
+ 582:usb_hid.c     **** 		}
+ 583:usb_hid.c     **** 	    }
+ 584:usb_hid.c     **** 
+ 585:usb_hid.c     **** 	    // Reset EP FIFOs
+ 586:usb_hid.c     **** 
+ 587:usb_hid.c     **** 	    UERST =
+ 981               		.loc 1 587 0
+ 982 0140 8EE7      		ldi r24,lo8(126)
+ 983               	.LVL94:
+ 984 0142 00C0      		rjmp .L142
+ 985               	.LVL95:
+ 986               	.L95:
+ 588:usb_hid.c     **** 		#if defined(__AVR_ATmegaXU4__) || defined(__AVR_AT90USBX6__)
+ 589:usb_hid.c     **** 		    _B1(EPRST6) | _B1(EPRST5) |
+ 590:usb_hid.c     **** 		#endif
+ 591:usb_hid.c     **** 		    _B1(EPRST4) | _B1(EPRST3) | _B1(EPRST2) | _B1(EPRST1) ;
+ 592:usb_hid.c     **** 
+ 593:usb_hid.c     **** 	    UERST = 0 ;
+ 594:usb_hid.c     **** 
+ 595:usb_hid.c     **** 	    return ;
+ 596:usb_hid.c     **** 	}
+ 597:usb_hid.c     **** 
+ 598:usb_hid.c     **** 	if ( bRequest == GET_CONFIGURATION && bmRequestType == 0x80 )
+ 987               		.loc 1 598 0
+ 988 0144 8830      		cpi r24,lo8(8)
+ 989 0146 01F4      		brne .L98
+ 990               		.loc 1 598 0 is_stmt 0 discriminator 1
+ 991 0148 9038      		cpi r25,lo8(-128)
+ 992 014a 01F0      		breq .+2
+ 993 014c 00C0      		rjmp .L82
+ 599:usb_hid.c     **** 	{
+ 600:usb_hid.c     **** 	    UEDATX = usb_configuration ;
+ 994               		.loc 1 600 0 is_stmt 1
+ 995 014e 8091 0000 		lds r24,usb_configuration
+ 996               	.LVL96:
+ 997 0152 8093 F100 		sts 241,r24
+ 998 0156 00C0      		rjmp .L143
+ 999               	.LVL97:
+ 1000               	.L98:
+ 601:usb_hid.c     **** 
+ 602:usb_hid.c     **** 	    usb_send_in() ;
+ 603:usb_hid.c     **** 
+ 604:usb_hid.c     **** 	    return ;
+ 605:usb_hid.c     **** 	}
+ 606:usb_hid.c     **** 
+ 607:usb_hid.c     **** 	if ( bRequest == GET_STATUS )
+ 1001               		.loc 1 607 0
+ 1002 0158 8111      		cpse r24,__zero_reg__
+ 1003 015a 00C0      		rjmp .L99
+ 1004               	.LVL98:
+ 608:usb_hid.c     **** 	{
+ 609:usb_hid.c     **** 	  #if SUPPORT_ENDPOINT_HALT
+ 610:usb_hid.c     **** 	    i = 0 ;
+ 611:usb_hid.c     **** 
+ 612:usb_hid.c     **** 	    if ( bmRequestType == 0x82 )
+ 1005               		.loc 1 612 0
+ 1006 015c 9238      		cpi r25,lo8(-126)
+ 1007 015e 01F4      		brne .L116
+ 613:usb_hid.c     **** 	    {
+ 614:usb_hid.c     **** 		UENUM = wIndex ;
+ 1008               		.loc 1 614 0
+ 1009 0160 2093 E900 		sts 233,r18
+ 615:usb_hid.c     **** 
+ 616:usb_hid.c     **** 		if ( bit_is_set( UECONX, STALLRQ ) )
+ 1010               		.loc 1 616 0
+ 1011 0164 8091 EB00 		lds r24,235
+ 1012               	.LVL99:
+ 610:usb_hid.c     **** 
+ 1013               		.loc 1 610 0
+ 1014 0168 85FB      		bst r24,5
+ 1015 016a 8827      		clr r24
+ 1016 016c 80F9      		bld r24,0
+ 1017               	.LVL100:
+ 617:usb_hid.c     **** 		    i = 1 ;
+ 618:usb_hid.c     **** 
+ 619:usb_hid.c     **** 		UENUM = 0;
+ 1018               		.loc 1 619 0
+ 1019 016e 1092 E900 		sts 233,__zero_reg__
+ 1020 0172 00C0      		rjmp .L100
+ 1021               	.LVL101:
+ 1022               	.L116:
+ 610:usb_hid.c     **** 
+ 1023               		.loc 1 610 0
+ 1024 0174 80E0      		ldi r24,0
+ 1025               	.LVL102:
+ 1026               	.L100:
+ 620:usb_hid.c     **** 	    }
+ 621:usb_hid.c     **** 
+ 622:usb_hid.c     **** 	    UEDATX = i ;
+ 1027               		.loc 1 622 0
+ 1028 0176 8093 F100 		sts 241,r24
+ 623:usb_hid.c     **** 	  #else
+ 624:usb_hid.c     **** 	    UEDATX = 0 ;
+ 625:usb_hid.c     **** 	  #endif
+ 626:usb_hid.c     **** 
+ 627:usb_hid.c     **** 	    UEDATX = 0 ;
+ 1029               		.loc 1 627 0
+ 1030 017a 1092 F100 		sts 241,__zero_reg__
+ 1031               	.LVL103:
+ 1032               	.L143:
+ 1033               	.LBB71:
+ 1034               	.LBB72:
+ 384:usb_hid.c     **** }
+ 1035               		.loc 1 384 0
+ 1036 017e 8EEF      		ldi r24,lo8(-2)
+ 1037 0180 8093 E800 		sts 232,r24
+ 1038 0184 00C0      		rjmp .L81
+ 1039               	.LVL104:
+ 1040               	.L99:
+ 1041               	.LBE72:
+ 1042               	.LBE71:
+ 628:usb_hid.c     **** 
+ 629:usb_hid.c     **** 	    usb_send_in() ;
+ 630:usb_hid.c     **** 
+ 631:usb_hid.c     **** 	    return ;
+ 632:usb_hid.c     **** 	}
+ 633:usb_hid.c     **** 
+ 634:usb_hid.c     ****       #if SUPPORT_ENDPOINT_HALT
+ 635:usb_hid.c     **** 
+ 636:usb_hid.c     **** 	if (   (bRequest == CLEAR_FEATURE || bRequest == SET_FEATURE)
+ 1043               		.loc 1 636 0
+ 1044 0186 8130      		cpi r24,lo8(1)
+ 1045 0188 01F0      		breq .L101
+ 1046               		.loc 1 636 0 is_stmt 0 discriminator 1
+ 1047 018a 8330      		cpi r24,lo8(3)
+ 1048 018c 01F4      		brne .+2
+ 1049 018e 00C0      		rjmp .L102
+ 1050 0190 00C0      		rjmp .L103
+ 1051               	.L101:
+ 637:usb_hid.c     **** 	     && bmRequestType == 0x02
+ 1052               		.loc 1 637 0 is_stmt 1
+ 1053 0192 9230      		cpi r25,lo8(2)
+ 1054 0194 01F0      		breq .+2
+ 1055 0196 00C0      		rjmp .L137
+ 1056               	.L111:
+ 638:usb_hid.c     **** 	     && wValue == 0 )
+ 1057               		.loc 1 638 0
+ 1058 0198 2097      		sbiw r28,0
+ 1059 019a 01F0      		breq .+2
+ 1060 019c 00C0      		rjmp .L82
+ 639:usb_hid.c     **** 	{
+ 640:usb_hid.c     **** 	    n = wIndex & 0x7F ;
+ 1061               		.loc 1 640 0
+ 1062 019e 2F77      		andi r18,lo8(127)
+ 1063               	.LVL105:
+ 641:usb_hid.c     **** 
+ 642:usb_hid.c     **** 	    if ( n >= 1 && n <= MAX_ENDPOINT )
+ 1064               		.loc 1 642 0
+ 1065 01a0 3FEF      		ldi r19,lo8(-1)
+ 1066 01a2 320F      		add r19,r18
+ 1067 01a4 3630      		cpi r19,lo8(6)
+ 1068 01a6 00F4      		brsh .L104
+ 1069               	.LBB73:
+ 1070               	.LBB74:
+ 384:usb_hid.c     **** }
+ 1071               		.loc 1 384 0
+ 1072 01a8 9EEF      		ldi r25,lo8(-2)
+ 1073               	.LVL106:
+ 1074 01aa 9093 E800 		sts 232,r25
+ 1075               	.LBE74:
+ 1076               	.LBE73:
+ 643:usb_hid.c     **** 	    {
+ 644:usb_hid.c     **** 		usb_send_in() ;			// Ack via ZLP
+ 645:usb_hid.c     **** 
+ 646:usb_hid.c     **** 		UENUM = n ;
+ 1077               		.loc 1 646 0
+ 1078 01ae 2093 E900 		sts 233,r18
+ 647:usb_hid.c     **** 
+ 648:usb_hid.c     **** 		if ( bRequest == SET_FEATURE )
+ 1079               		.loc 1 648 0
+ 1080 01b2 8330      		cpi r24,lo8(3)
+ 1081 01b4 01F4      		brne .+2
+ 1082 01b6 00C0      		rjmp .L82
+ 649:usb_hid.c     **** 		    UECONX = _B1(STALLRQ) | _B1(EPEN) ;
+ 650:usb_hid.c     **** 		else
+ 651:usb_hid.c     **** 		{
+ 652:usb_hid.c     **** 		    UECONX = _B1(STALLRQC) | _B1(RSTDT) | _B1(EPEN) ;
+ 1083               		.loc 1 652 0
+ 1084 01b8 89E1      		ldi r24,lo8(25)
+ 1085               	.LVL107:
+ 1086 01ba 8093 EB00 		sts 235,r24
+ 653:usb_hid.c     **** 		    UERST  = _B1(n) ;
+ 1087               		.loc 1 653 0
+ 1088 01be 81E0      		ldi r24,lo8(1)
+ 1089 01c0 90E0      		ldi r25,0
+ 1090 01c2 00C0      		rjmp 2f
+ 1091               		1:
+ 1092 01c4 880F      		lsl r24
+ 1093               		2:
+ 1094 01c6 2A95      		dec r18
+ 1095 01c8 02F4      		brpl 1b
+ 1096               	.LVL108:
+ 1097               	.L142:
+ 1098 01ca 8093 EA00 		sts 234,r24
+ 654:usb_hid.c     **** 		    UERST  = 0 ;
+ 1099               		.loc 1 654 0
+ 1100 01ce 1092 EA00 		sts 234,__zero_reg__
+ 1101 01d2 00C0      		rjmp .L81
+ 1102               	.LVL109:
+ 1103               	.L104:
+ 655:usb_hid.c     **** 		}
+ 656:usb_hid.c     **** 
+ 657:usb_hid.c     **** 		return ;
+ 658:usb_hid.c     **** 	    }
+ 659:usb_hid.c     **** 	}
+ 660:usb_hid.c     ****       #endif
+ 661:usb_hid.c     **** 
+ 662:usb_hid.c     **** 	if ( bRequest == HID_GET_REPORT && bmRequestType == 0xA1 )
+ 1104               		.loc 1 662 0
+ 1105 01d4 8130      		cpi r24,lo8(1)
+ 1106 01d6 01F0      		breq .L82
+ 1107               	.LVL110:
+ 1108               	.L103:
+ 663:usb_hid.c     **** 	{
+ 664:usb_hid.c     **** 	    // wValue contains report type (h) and id (l), see HID 1,11, 7.2.1
+ 665:usb_hid.c     **** 	    // type shoud be "input" (3), id should be 0 or 1/2
+ 666:usb_hid.c     **** 	    // wLength should match sizeof( hid_report )
+ 667:usb_hid.c     **** 
+ 668:usb_hid.c     **** 	    usb_send_EP0( VP( sw_report ), sw_reportsz, IN_RAM ) ;
+ 669:usb_hid.c     **** 
+ 670:usb_hid.c     **** 	    return ;
+ 671:usb_hid.c     **** 	}
+ 672:usb_hid.c     **** 
+ 673:usb_hid.c     **** 	if ( bRequest == HID_GET_IDLE && bmRequestType == 0xA1 )
+ 1109               		.loc 1 673 0
+ 1110 01d8 8230      		cpi r24,lo8(2)
+ 1111 01da 01F4      		brne .L106
+ 1112               		.loc 1 673 0 is_stmt 0 discriminator 1
+ 1113 01dc 913A      		cpi r25,lo8(-95)
+ 1114 01de 01F4      		brne .L82
+ 674:usb_hid.c     **** 	{
+ 675:usb_hid.c     **** 	    // LSB(wValue): report ID
+ 676:usb_hid.c     **** 	    // wIndex: interface
+ 677:usb_hid.c     **** 
+ 678:usb_hid.c     **** 	    usb_send_EP0( VP( &idle_rate ), sizeof( idle_rate ), IN_RAM ) ;
+ 1115               		.loc 1 678 0 is_stmt 1
+ 1116 01e0 40E0      		ldi r20,0
+ 1117 01e2 61E0      		ldi r22,lo8(1)
+ 1118 01e4 80E0      		ldi r24,lo8(idle_rate)
+ 1119 01e6 90E0      		ldi r25,hi8(idle_rate)
+ 1120               	.LVL111:
+ 1121               	.L141:
+ 1122 01e8 0E94 0000 		call usb_send_EP0
+ 1123               	.LVL112:
+ 679:usb_hid.c     **** 
+ 680:usb_hid.c     **** 	    return ;
+ 1124               		.loc 1 680 0
+ 1125 01ec 00C0      		rjmp .L81
+ 1126               	.LVL113:
+ 1127               	.L106:
+ 681:usb_hid.c     **** 	}
+ 682:usb_hid.c     **** 
+ 683:usb_hid.c     **** 	if ( bRequest == HID_SET_IDLE && bmRequestType == 0x21 )
+ 1128               		.loc 1 683 0
+ 1129 01ee 8A30      		cpi r24,lo8(10)
+ 1130 01f0 01F4      		brne .L82
+ 1131               		.loc 1 683 0 is_stmt 0 discriminator 1
+ 1132 01f2 9132      		cpi r25,lo8(33)
+ 1133 01f4 01F4      		brne .L82
+ 1134               	.LBB75:
+ 1135               	.LBB76:
+ 384:usb_hid.c     **** }
+ 1136               		.loc 1 384 0 is_stmt 1
+ 1137 01f6 8EEF      		ldi r24,lo8(-2)
+ 1138               	.LVL114:
+ 1139 01f8 8093 E800 		sts 232,r24
+ 1140               	.LBE76:
+ 1141               	.LBE75:
+ 684:usb_hid.c     **** 	{
+ 685:usb_hid.c     **** 	    usb_send_in() ;			// Ack via ZLP
+ 686:usb_hid.c     **** 
+ 687:usb_hid.c     **** 	    // MSB(wValue): duration in 4ms clicks, 0 for indefinite
+ 688:usb_hid.c     **** 	    // LSB(wValue): report ID
+ 689:usb_hid.c     **** 	    // wIndex: interface
+ 690:usb_hid.c     **** 
+ 691:usb_hid.c     **** 	    i = MSB( wValue ) ;
+ 1142               		.loc 1 691 0
+ 1143 01fc CD2F      		mov r28,r29
+ 1144 01fe DD27      		clr r29
+ 1145               	.LVL115:
+ 692:usb_hid.c     **** 
+ 693:usb_hid.c     **** 	    if ( ! i )				// Indefinite
+ 1146               		.loc 1 693 0
+ 1147 0200 2097      		sbiw r28,0
+ 1148 0202 01F4      		brne .L107
+ 694:usb_hid.c     **** 		idle_cnt = 0 ;
+ 1149               		.loc 1 694 0
+ 1150 0204 1092 0000 		sts idle_cnt,__zero_reg__
+ 1151 0208 00C0      		rjmp .L108
+ 1152               	.L107:
+ 695:usb_hid.c     **** 	    else
+ 696:usb_hid.c     **** 	    {
+ 697:usb_hid.c     **** 		if ( ! idle_rate || (idle_rate - idle_cnt) >= i )
+ 1153               		.loc 1 697 0
+ 1154 020a 8091 0000 		lds r24,idle_rate
+ 1155 020e 8823      		tst r24
+ 1156 0210 01F0      		breq .L109
+ 1157               		.loc 1 697 0 is_stmt 0 discriminator 1
+ 1158 0212 2091 0000 		lds r18,idle_cnt
+ 1159 0216 90E0      		ldi r25,0
+ 1160               	.LVL116:
+ 1161 0218 821B      		sub r24,r18
+ 1162 021a 9109      		sbc r25,__zero_reg__
+ 1163 021c 8C17      		cp r24,r28
+ 1164 021e 9D07      		cpc r25,r29
+ 1165 0220 04F0      		brlt .L110
+ 1166               	.L109:
+ 698:usb_hid.c     **** 		    idle_cnt = 1 ;		// Was indefinite or new idle expired
+ 1167               		.loc 1 698 0 is_stmt 1
+ 1168 0222 81E0      		ldi r24,lo8(1)
+ 1169 0224 00C0      		rjmp .L139
+ 1170               	.L110:
+ 699:usb_hid.c     **** 		else
+ 700:usb_hid.c     **** 		    idle_cnt = i - idle_cnt ;	// Correct counter to new idle time
+ 1171               		.loc 1 700 0
+ 1172 0226 8C2F      		mov r24,r28
+ 1173 0228 821B      		sub r24,r18
+ 1174               	.L139:
+ 1175 022a 8093 0000 		sts idle_cnt,r24
+ 1176               	.L108:
+ 701:usb_hid.c     **** 	    }
+ 702:usb_hid.c     **** 
+ 703:usb_hid.c     **** 	    idle_rate = i ;
+ 1177               		.loc 1 703 0
+ 1178 022e C093 0000 		sts idle_rate,r28
+ 704:usb_hid.c     **** 
+ 705:usb_hid.c     **** 	    return ;
+ 1179               		.loc 1 705 0
+ 1180 0232 00C0      		rjmp .L81
+ 1181               	.LVL117:
+ 1182               	.L102:
+ 637:usb_hid.c     **** 	     && wValue == 0 )
+ 1183               		.loc 1 637 0
+ 1184 0234 9230      		cpi r25,lo8(2)
+ 1185 0236 01F4      		brne .+2
+ 1186 0238 00C0      		rjmp .L111
+ 1187               	.LVL118:
+ 1188               	.L82:
+ 706:usb_hid.c     **** 	}
+ 707:usb_hid.c     ****     }
+ 708:usb_hid.c     **** 
+ 709:usb_hid.c     ****     UECONX = _BV( STALLRQ ) | _BV( EPEN ) ;	// stall
+ 1189               		.loc 1 709 0
+ 1190 023a 81E2      		ldi r24,lo8(33)
+ 1191 023c 8093 EB00 		sts 235,r24
+ 1192 0240 00C0      		rjmp .L81
+ 1193               	.LVL119:
+ 1194               	.L137:
+ 662:usb_hid.c     **** 	{
+ 1195               		.loc 1 662 0 discriminator 1
+ 1196 0242 913A      		cpi r25,lo8(-95)
+ 1197 0244 01F4      		brne .L82
+ 668:usb_hid.c     **** 
+ 1198               		.loc 1 668 0
+ 1199 0246 40E0      		ldi r20,0
+ 1200               	.LVL120:
+ 1201 0248 6091 0000 		lds r22,sw_reportsz
+ 1202 024c 80E0      		ldi r24,lo8(sw_report)
+ 1203 024e 90E0      		ldi r25,hi8(sw_report)
+ 1204               	.LVL121:
+ 1205 0250 00C0      		rjmp .L141
+ 1206               	.LVL122:
+ 1207               	.L81:
+ 1208               	/* epilogue start */
+ 710:usb_hid.c     **** }
+ 1209               		.loc 1 710 0
+ 1210 0252 FF91      		pop r31
+ 1211 0254 EF91      		pop r30
+ 1212 0256 DF91      		pop r29
+ 1213 0258 CF91      		pop r28
+ 1214 025a BF91      		pop r27
+ 1215 025c AF91      		pop r26
+ 1216 025e 9F91      		pop r25
+ 1217 0260 8F91      		pop r24
+ 1218 0262 7F91      		pop r23
+ 1219 0264 6F91      		pop r22
+ 1220 0266 5F91      		pop r21
+ 1221 0268 4F91      		pop r20
+ 1222 026a 3F91      		pop r19
+ 1223 026c 2F91      		pop r18
+ 1224 026e 1F91      		pop r17
+ 1225 0270 0F91      		pop r16
+ 1226 0272 0F90      		pop r0
+ 1227 0274 0FBE      		out __SREG__,r0
+ 1228 0276 0F90      		pop r0
+ 1229 0278 1F90      		pop r1
+ 1230 027a 1895      		reti
+ 1231               		.cfi_endproc
+ 1232               	.LFE22:
+ 1234               		.comm	usb_suspend,1,1
+ 1235               		.comm	usb_configuration,1,1
+ 1236               		.section	.progmem.data,"a",@progbits
+ 1239               	cfg_descriptors_FFP:
+ 1240 0000 0001      		.word	256
+ 1241 0002 0000      		.word	usbDeviceDescFFP
+ 1242 0004 01        		.byte	1
+ 1243 0005 12        		.byte	18
+ 1244 0006 0002      		.word	512
+ 1245 0008 0000      		.word	usbConfigurationDescFFP
+ 1246 000a 01        		.byte	1
+ 1247 000b 22        		.byte	34
+ 1248 000c 0021      		.word	8448
+ 1249 000e 0000      		.word	usbConfigurationDescFFP+18
+ 1250 0010 01        		.byte	1
+ 1251 0011 09        		.byte	9
+ 1252 0012 0022      		.word	8704
+ 1253 0014 0000      		.word	usbHidRepDescFFP
+ 1254 0016 01        		.byte	1
+ 1255 0017 6E        		.byte	110
+ 1258               	cfg_descriptors_PP:
+ 1259 0018 0001      		.word	256
+ 1260 001a 0000      		.word	usbDeviceDescPP
+ 1261 001c 01        		.byte	1
+ 1262 001d 12        		.byte	18
+ 1263 001e 0002      		.word	512
+ 1264 0020 0000      		.word	usbConfigurationDescFFP
+ 1265 0022 01        		.byte	1
+ 1266 0023 22        		.byte	34
+ 1267 0024 0021      		.word	8448
+ 1268 0026 0000      		.word	usbConfigurationDescFFP+18
+ 1269 0028 01        		.byte	1
+ 1270 0029 09        		.byte	9
+ 1271 002a 0022      		.word	8704
+ 1272 002c 0000      		.word	usbHidRepDescFFP
+ 1273 002e 01        		.byte	1
+ 1274 002f 6E        		.byte	110
+ 1277               	cfg_descriptors_3DP:
+ 1278 0030 0001      		.word	256
+ 1279 0032 0000      		.word	usbDeviceDesc3DP
+ 1280 0034 01        		.byte	1
+ 1281 0035 12        		.byte	18
+ 1282 0036 0002      		.word	512
+ 1283 0038 0000      		.word	usbConfigurationDesc3DP
+ 1284 003a 01        		.byte	1
+ 1285 003b 22        		.byte	34
+ 1286 003c 0021      		.word	8448
+ 1287 003e 0000      		.word	usbConfigurationDesc3DP+18
+ 1288 0040 01        		.byte	1
+ 1289 0041 09        		.byte	9
+ 1290 0042 0022      		.word	8704
+ 1291 0044 0000      		.word	usbHidRepDesc3DP
+ 1292 0046 01        		.byte	1
+ 1293 0047 64        		.byte	100
+ 1296               	str_descriptors:
+ 1297 0048 0003      		.word	768
+ 1298 004a 0000      		.word	usbStringDescLan
+ 1299 004c 01        		.byte	1
+ 1300 004d 04        		.byte	4
+ 1301 004e 0103      		.word	769
+ 1302 0050 0000      		.word	usbStringDescMan
+ 1303 0052 01        		.byte	1
+ 1304 0053 32        		.byte	50
+ 1305 0054 0203      		.word	770
+ 1306 0056 0000      		.word	0
+ 1307 0058 02        		.byte	2
+ 1308 0059 0A        		.byte	10
+ 1309 005a 0303      		.word	771
+ 1310 005c 0000      		.word	usbStringDescPro3DP
+ 1311 005e 01        		.byte	1
+ 1312 005f 44        		.byte	68
+ 1313 0060 0403      		.word	772
+ 1314 0062 0000      		.word	usbStringDescProPP
+ 1315 0064 01        		.byte	1
+ 1316 0065 52        		.byte	82
+ 1317 0066 0503      		.word	773
+ 1318 0068 0000      		.word	usbStringDescProFFP
+ 1319 006a 01        		.byte	1
+ 1320 006b 5C        		.byte	92
+ 1323               	endpoint_config_table:
+ 1324 006c 00        		.byte	0
+ 1325 006d 00        		.byte	0
+ 1326 006e 00        		.byte	0
+ 1327 006f 01        		.byte	1
+ 1328 0070 C1        		.byte	-63
+ 1329 0071 06        		.byte	6
+ 1330 0072 00        		.byte	0
+ 1331 0073 00        		.byte	0
+ 1332               		.text
+ 1333               	.Letext0:
+ 1334               		.file 2 "/usr/lib/avr/include/stdint.h"
+ 1335               		.file 3 "usbdescr.h"
+ 1336               		.file 4 "3DPro.h"
+ 1337               		.file 5 "/usr/lib/avr/include/avr/eeprom.h"
+DEFINED SYMBOLS
+                            *ABS*:00000000 usb_hid.c
+     /tmp/ccxCZzCN.s:2      *ABS*:0000003e __SP_H__
+     /tmp/ccxCZzCN.s:3      *ABS*:0000003d __SP_L__
+     /tmp/ccxCZzCN.s:4      *ABS*:0000003f __SREG__
+     /tmp/ccxCZzCN.s:5      *ABS*:00000000 __tmp_reg__
+     /tmp/ccxCZzCN.s:6      *ABS*:00000001 __zero_reg__
+     /tmp/ccxCZzCN.s:12     .text.lookup:00000000 lookup
+     /tmp/ccxCZzCN.s:67     .text.usb_send_EP0:00000000 usb_send_EP0
+     /tmp/ccxCZzCN.s:234    .text.usb_init:00000000 usb_init
+     /tmp/ccxCZzCN.s:334    .text.usb_configured:00000000 usb_configured
+                            *COM*:00000001 usb_configuration
+                            *COM*:00000001 usb_suspend
+     /tmp/ccxCZzCN.s:373    .text.usb_IN_busy:00000000 usb_IN_busy
+     /tmp/ccxCZzCN.s:426    .text.usb_send_IN:00000000 usb_send_IN
+     /tmp/ccxCZzCN.s:489    .text.__vector_10:00000000 __vector_10
+     /tmp/ccxCZzCN.s:622    .text.__vector_11:00000000 __vector_11
+     /tmp/ccxCZzCN.s:1296   .progmem.data:00000048 str_descriptors
+     /tmp/ccxCZzCN.s:1277   .progmem.data:00000030 cfg_descriptors_3DP
+     /tmp/ccxCZzCN.s:1258   .progmem.data:00000018 cfg_descriptors_PP
+     /tmp/ccxCZzCN.s:1239   .progmem.data:00000000 cfg_descriptors_FFP
+     /tmp/ccxCZzCN.s:1323   .progmem.data:0000006c endpoint_config_table
+
+UNDEFINED SYMBOLS
+eeprom_read_byte
+usbStringDescSer
+eeprom_write_byte
+sw_id
+idle_rate
+idle_cnt
+sw_reportsz
+sw_report
+usbDeviceDescFFP
+usbConfigurationDescFFP
+usbHidRepDescFFP
+usbDeviceDescPP
+usbDeviceDesc3DP
+usbConfigurationDesc3DP
+usbHidRepDesc3DP
+usbStringDescLan
+usbStringDescMan
+usbStringDescPro3DP
+usbStringDescProPP
+usbStringDescProFFP
+__do_clear_bss

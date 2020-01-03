@@ -1,0 +1,524 @@
+   1               		.file	"usbdescr.c"
+   2               	__SP_H__ = 0x3e
+   3               	__SP_L__ = 0x3d
+   4               	__SREG__ = 0x3f
+   5               	__tmp_reg__ = 0
+   6               	__zero_reg__ = 1
+   7               		.text
+   8               	.Ltext0:
+   9               		.cfi_sections	.debug_frame
+  10               	.global	usbConfigurationDescFFP
+  11               		.section	.progmem.data,"a",@progbits
+  14               	usbConfigurationDescFFP:
+  15 0000 09        		.byte	9
+  16 0001 02        		.byte	2
+  17 0002 2200      		.word	34
+  18 0004 01        		.byte	1
+  19 0005 01        		.byte	1
+  20 0006 00        		.byte	0
+  21 0007 80        		.byte	-128
+  22 0008 32        		.byte	50
+  23 0009 09        		.byte	9
+  24 000a 04        		.byte	4
+  25 000b 00        		.byte	0
+  26 000c 00        		.byte	0
+  27 000d 01        		.byte	1
+  28 000e 03        		.byte	3
+  29 000f 00        		.byte	0
+  30 0010 00        		.byte	0
+  31 0011 00        		.byte	0
+  32 0012 09        		.byte	9
+  33 0013 21        		.byte	33
+  34 0014 1101      		.word	273
+  35 0016 00        		.byte	0
+  36 0017 01        		.byte	1
+  37 0018 22        		.byte	34
+  38 0019 6E00      		.word	110
+  39 001b 07        		.byte	7
+  40 001c 05        		.byte	5
+  41 001d 84        		.byte	-124
+  42 001e 03        		.byte	3
+  43 001f 0800      		.word	8
+  44 0021 02        		.byte	2
+  45               	.global	usbConfigurationDesc3DP
+  48               	usbConfigurationDesc3DP:
+  49 0022 09        		.byte	9
+  50 0023 02        		.byte	2
+  51 0024 2200      		.word	34
+  52 0026 01        		.byte	1
+  53 0027 01        		.byte	1
+  54 0028 00        		.byte	0
+  55 0029 80        		.byte	-128
+  56 002a 32        		.byte	50
+  57 002b 09        		.byte	9
+  58 002c 04        		.byte	4
+  59 002d 00        		.byte	0
+  60 002e 00        		.byte	0
+  61 002f 01        		.byte	1
+  62 0030 03        		.byte	3
+  63 0031 00        		.byte	0
+  64 0032 00        		.byte	0
+  65 0033 00        		.byte	0
+  66 0034 09        		.byte	9
+  67 0035 21        		.byte	33
+  68 0036 1101      		.word	273
+  69 0038 00        		.byte	0
+  70 0039 01        		.byte	1
+  71 003a 22        		.byte	34
+  72 003b 6400      		.word	100
+  73 003d 07        		.byte	7
+  74 003e 05        		.byte	5
+  75 003f 84        		.byte	-124
+  76 0040 03        		.byte	3
+  77 0041 0800      		.word	8
+  78 0043 02        		.byte	2
+  79               	.global	usbDeviceDescFFP
+  82               	usbDeviceDescFFP:
+  83 0044 12        		.byte	18
+  84 0045 01        		.byte	1
+  85 0046 0002      		.word	512
+  86 0048 00        		.byte	0
+  87 0049 00        		.byte	0
+  88 004a 00        		.byte	0
+  89 004b 40        		.byte	64
+  90 004c 4123      		.word	9025
+  91 004e 0500      		.word	5
+  92 0050 0004      		.word	1024
+  93 0052 01        		.byte	1
+  94 0053 05        		.byte	5
+  95 0054 02        		.byte	2
+  96 0055 01        		.byte	1
+  97               	.global	usbDeviceDescPP
+ 100               	usbDeviceDescPP:
+ 101 0056 12        		.byte	18
+ 102 0057 01        		.byte	1
+ 103 0058 0002      		.word	512
+ 104 005a 00        		.byte	0
+ 105 005b 00        		.byte	0
+ 106 005c 00        		.byte	0
+ 107 005d 40        		.byte	64
+ 108 005e 4123      		.word	9025
+ 109 0060 3680      		.word	-32714
+ 110 0062 0004      		.word	1024
+ 111 0064 01        		.byte	1
+ 112 0065 04        		.byte	4
+ 113 0066 02        		.byte	2
+ 114 0067 01        		.byte	1
+ 115               	.global	usbDeviceDesc3DP
+ 118               	usbDeviceDesc3DP:
+ 119 0068 12        		.byte	18
+ 120 0069 01        		.byte	1
+ 121 006a 0002      		.word	512
+ 122 006c 00        		.byte	0
+ 123 006d 00        		.byte	0
+ 124 006e 00        		.byte	0
+ 125 006f 40        		.byte	64
+ 126 0070 4123      		.word	9025
+ 127 0072 0200      		.word	2
+ 128 0074 0004      		.word	1024
+ 129 0076 01        		.byte	1
+ 130 0077 03        		.byte	3
+ 131 0078 02        		.byte	2
+ 132 0079 01        		.byte	1
+ 133               	.global	usbStringDescProFFP
+ 136               	usbStringDescProFFP:
+ 137 007a 5C        		.byte	92
+ 138 007b 03        		.byte	3
+ 139 007c 4D00      		.word	77
+ 140 007e 6900      		.word	105
+ 141 0080 6300      		.word	99
+ 142 0082 7200      		.word	114
+ 143 0084 6F00      		.word	111
+ 144 0086 7300      		.word	115
+ 145 0088 6F00      		.word	111
+ 146 008a 6600      		.word	102
+ 147 008c 7400      		.word	116
+ 148 008e 2000      		.word	32
+ 149 0090 5300      		.word	83
+ 150 0092 6900      		.word	105
+ 151 0094 6400      		.word	100
+ 152 0096 6500      		.word	101
+ 153 0098 5700      		.word	87
+ 154 009a 6900      		.word	105
+ 155 009c 6E00      		.word	110
+ 156 009e 6400      		.word	100
+ 157 00a0 6500      		.word	101
+ 158 00a2 7200      		.word	114
+ 159 00a4 2000      		.word	32
+ 160 00a6 4600      		.word	70
+ 161 00a8 6F00      		.word	111
+ 162 00aa 7200      		.word	114
+ 163 00ac 6300      		.word	99
+ 164 00ae 6500      		.word	101
+ 165 00b0 2000      		.word	32
+ 166 00b2 4600      		.word	70
+ 167 00b4 6500      		.word	101
+ 168 00b6 6500      		.word	101
+ 169 00b8 6400      		.word	100
+ 170 00ba 6200      		.word	98
+ 171 00bc 6100      		.word	97
+ 172 00be 6300      		.word	99
+ 173 00c0 6B00      		.word	107
+ 174 00c2 2000      		.word	32
+ 175 00c4 5000      		.word	80
+ 176 00c6 7200      		.word	114
+ 177 00c8 6F00      		.word	111
+ 178 00ca 2000      		.word	32
+ 179 00cc 2800      		.word	40
+ 180 00ce 5500      		.word	85
+ 181 00d0 5300      		.word	83
+ 182 00d2 4200      		.word	66
+ 183 00d4 2900      		.word	41
+ 184               	.global	usbStringDescProPP
+ 187               	usbStringDescProPP:
+ 188 00d6 52        		.byte	82
+ 189 00d7 03        		.byte	3
+ 190 00d8 4D00      		.word	77
+ 191 00da 6900      		.word	105
+ 192 00dc 6300      		.word	99
+ 193 00de 7200      		.word	114
+ 194 00e0 6F00      		.word	111
+ 195 00e2 7300      		.word	115
+ 196 00e4 6F00      		.word	111
+ 197 00e6 6600      		.word	102
+ 198 00e8 7400      		.word	116
+ 199 00ea 2000      		.word	32
+ 200 00ec 5300      		.word	83
+ 201 00ee 4B00      		.word	75
+ 202 00f0 5300      		.word	83
+ 203 00f2 6500      		.word	101
+ 204 00f4 5700      		.word	87
+ 205 00f6 6900      		.word	105
+ 206 00f8 6E00      		.word	110
+ 207 00fa 6400      		.word	100
+ 208 00fc 6500      		.word	101
+ 209 00fe 7200      		.word	114
+ 210 0100 2000      		.word	32
+ 211 0102 5000      		.word	80
+ 212 0104 7200      		.word	114
+ 213 0106 6500      		.word	101
+ 214 0108 6300      		.word	99
+ 215 010a 6900      		.word	105
+ 216 010c 7300      		.word	115
+ 217 010e 6900      		.word	105
+ 218 0110 6F00      		.word	111
+ 219 0112 6E00      		.word	110
+ 220 0114 2000      		.word	32
+ 221 0116 5000      		.word	80
+ 222 0118 7200      		.word	114
+ 223 011a 6F00      		.word	111
+ 224 011c 2000      		.word	32
+ 225 011e 2800      		.word	40
+ 226 0120 5500      		.word	85
+ 227 0122 5300      		.word	83
+ 228 0124 4200      		.word	66
+ 229 0126 2900      		.word	41
+ 230               	.global	usbStringDescPro3DP
+ 233               	usbStringDescPro3DP:
+ 234 0128 44        		.byte	68
+ 235 0129 03        		.byte	3
+ 236 012a 4D00      		.word	77
+ 237 012c 6900      		.word	105
+ 238 012e 6300      		.word	99
+ 239 0130 7200      		.word	114
+ 240 0132 6F00      		.word	111
+ 241 0134 7300      		.word	115
+ 242 0136 6F00      		.word	111
+ 243 0138 6600      		.word	102
+ 244 013a 7400      		.word	116
+ 245 013c 2000      		.word	32
+ 246 013e 5300      		.word	83
+ 247 0140 6900      		.word	105
+ 248 0142 6400      		.word	100
+ 249 0144 6500      		.word	101
+ 250 0146 5700      		.word	87
+ 251 0148 6900      		.word	105
+ 252 014a 6E00      		.word	110
+ 253 014c 6400      		.word	100
+ 254 014e 6500      		.word	101
+ 255 0150 7200      		.word	114
+ 256 0152 2000      		.word	32
+ 257 0154 3300      		.word	51
+ 258 0156 4400      		.word	68
+ 259 0158 2000      		.word	32
+ 260 015a 5000      		.word	80
+ 261 015c 7200      		.word	114
+ 262 015e 6F00      		.word	111
+ 263 0160 2000      		.word	32
+ 264 0162 2800      		.word	40
+ 265 0164 5500      		.word	85
+ 266 0166 5300      		.word	83
+ 267 0168 4200      		.word	66
+ 268 016a 2900      		.word	41
+ 269               	.global	usbStringDescSer
+ 272               	usbStringDescSer:
+ 273 016c 0A        		.byte	10
+ 274 016d 03        		.byte	3
+ 275 016e 3000      		.word	48
+ 276 0170 3300      		.word	51
+ 277 0172 3300      		.word	51
+ 278 0174 3300      		.word	51
+ 279               	.global	usbStringDescMan
+ 282               	usbStringDescMan:
+ 283 0176 32        		.byte	50
+ 284 0177 03        		.byte	3
+ 285 0178 4400      		.word	68
+ 286 017a 6500      		.word	101
+ 287 017c 7400      		.word	116
+ 288 017e 6C00      		.word	108
+ 289 0180 6500      		.word	101
+ 290 0182 6600      		.word	102
+ 291 0184 2000      		.word	32
+ 292 0186 3C00      		.word	60
+ 293 0188 4700      		.word	71
+ 294 018a 7200      		.word	114
+ 295 018c 6500      		.word	101
+ 296 018e 6E00      		.word	110
+ 297 0190 6400      		.word	100
+ 298 0192 6500      		.word	101
+ 299 0194 6C00      		.word	108
+ 300 0196 3E00      		.word	62
+ 301 0198 2000      		.word	32
+ 302 019a 4D00      		.word	77
+ 303 019c 7500      		.word	117
+ 304 019e 6500      		.word	101
+ 305 01a0 6C00      		.word	108
+ 306 01a2 6C00      		.word	108
+ 307 01a4 6500      		.word	101
+ 308 01a6 7200      		.word	114
+ 309               	.global	usbStringDescLan
+ 312               	usbStringDescLan:
+ 313 01a8 04        		.byte	4
+ 314 01a9 03        		.byte	3
+ 315 01aa 0904      		.word	1033
+ 316               	.global	usbHidRepDescFFP
+ 319               	usbHidRepDescFFP:
+ 320 01ac 05        		.byte	5
+ 321 01ad 01        		.byte	1
+ 322 01ae 09        		.byte	9
+ 323 01af 04        		.byte	4
+ 324 01b0 A1        		.byte	-95
+ 325 01b1 01        		.byte	1
+ 326 01b2 09        		.byte	9
+ 327 01b3 01        		.byte	1
+ 328 01b4 A1        		.byte	-95
+ 329 01b5 00        		.byte	0
+ 330 01b6 95        		.byte	-107
+ 331 01b7 02        		.byte	2
+ 332 01b8 75        		.byte	117
+ 333 01b9 0A        		.byte	10
+ 334 01ba 16        		.byte	22
+ 335 01bb 00        		.byte	0
+ 336 01bc FE        		.byte	-2
+ 337 01bd 26        		.byte	38
+ 338 01be FF        		.byte	-1
+ 339 01bf 01        		.byte	1
+ 340 01c0 35        		.byte	53
+ 341 01c1 00        		.byte	0
+ 342 01c2 46        		.byte	70
+ 343 01c3 FF        		.byte	-1
+ 344 01c4 03        		.byte	3
+ 345 01c5 09        		.byte	9
+ 346 01c6 30        		.byte	48
+ 347 01c7 09        		.byte	9
+ 348 01c8 31        		.byte	49
+ 349 01c9 81        		.byte	-127
+ 350 01ca 02        		.byte	2
+ 351 01cb 95        		.byte	-107
+ 352 01cc 01        		.byte	1
+ 353 01cd 75        		.byte	117
+ 354 01ce 04        		.byte	4
+ 355 01cf 15        		.byte	21
+ 356 01d0 00        		.byte	0
+ 357 01d1 25        		.byte	37
+ 358 01d2 07        		.byte	7
+ 359 01d3 46        		.byte	70
+ 360 01d4 3B        		.byte	59
+ 361 01d5 01        		.byte	1
+ 362 01d6 65        		.byte	101
+ 363 01d7 14        		.byte	20
+ 364 01d8 09        		.byte	9
+ 365 01d9 39        		.byte	57
+ 366 01da 81        		.byte	-127
+ 367 01db 42        		.byte	66
+ 368 01dc 75        		.byte	117
+ 369 01dd 06        		.byte	6
+ 370 01de 15        		.byte	21
+ 371 01df E0        		.byte	-32
+ 372 01e0 25        		.byte	37
+ 373 01e1 1F        		.byte	31
+ 374 01e2 45        		.byte	69
+ 375 01e3 2E        		.byte	46
+ 376 01e4 09        		.byte	9
+ 377 01e5 35        		.byte	53
+ 378 01e6 81        		.byte	-127
+ 379 01e7 02        		.byte	2
+ 380 01e8 95        		.byte	-107
+ 381 01e9 09        		.byte	9
+ 382 01ea 75        		.byte	117
+ 383 01eb 01        		.byte	1
+ 384 01ec 15        		.byte	21
+ 385 01ed 00        		.byte	0
+ 386 01ee 25        		.byte	37
+ 387 01ef 01        		.byte	1
+ 388 01f0 45        		.byte	69
+ 389 01f1 01        		.byte	1
+ 390 01f2 65        		.byte	101
+ 391 01f3 00        		.byte	0
+ 392 01f4 A4        		.byte	-92
+ 393 01f5 05        		.byte	5
+ 394 01f6 09        		.byte	9
+ 395 01f7 19        		.byte	25
+ 396 01f8 01        		.byte	1
+ 397 01f9 29        		.byte	41
+ 398 01fa 09        		.byte	9
+ 399 01fb 81        		.byte	-127
+ 400 01fc 02        		.byte	2
+ 401 01fd C0        		.byte	-64
+ 402 01fe B4        		.byte	-76
+ 403 01ff 95        		.byte	-107
+ 404 0200 01        		.byte	1
+ 405 0201 75        		.byte	117
+ 406 0202 07        		.byte	7
+ 407 0203 15        		.byte	21
+ 408 0204 C0        		.byte	-64
+ 409 0205 25        		.byte	37
+ 410 0206 3F        		.byte	63
+ 411 0207 45        		.byte	69
+ 412 0208 7F        		.byte	127
+ 413 0209 09        		.byte	9
+ 414 020a 36        		.byte	54
+ 415 020b 81        		.byte	-127
+ 416 020c 02        		.byte	2
+ 417 020d 75        		.byte	117
+ 418 020e 02        		.byte	2
+ 419 020f 81        		.byte	-127
+ 420 0210 01        		.byte	1
+ 421 0211 C0        		.byte	-64
+ 422 0212 0000 0000 		.zero	8
+ 422      0000 0000 
+ 423               	.global	usbHidRepDesc3DP
+ 426               	usbHidRepDesc3DP:
+ 427 021a 05        		.byte	5
+ 428 021b 01        		.byte	1
+ 429 021c 09        		.byte	9
+ 430 021d 04        		.byte	4
+ 431 021e A1        		.byte	-95
+ 432 021f 01        		.byte	1
+ 433 0220 09        		.byte	9
+ 434 0221 01        		.byte	1
+ 435 0222 A1        		.byte	-95
+ 436 0223 00        		.byte	0
+ 437 0224 95        		.byte	-107
+ 438 0225 02        		.byte	2
+ 439 0226 75        		.byte	117
+ 440 0227 0A        		.byte	10
+ 441 0228 16        		.byte	22
+ 442 0229 00        		.byte	0
+ 443 022a FE        		.byte	-2
+ 444 022b 26        		.byte	38
+ 445 022c FF        		.byte	-1
+ 446 022d 01        		.byte	1
+ 447 022e 35        		.byte	53
+ 448 022f 00        		.byte	0
+ 449 0230 46        		.byte	70
+ 450 0231 FF        		.byte	-1
+ 451 0232 03        		.byte	3
+ 452 0233 A4        		.byte	-92
+ 453 0234 09        		.byte	9
+ 454 0235 30        		.byte	48
+ 455 0236 09        		.byte	9
+ 456 0237 31        		.byte	49
+ 457 0238 81        		.byte	-127
+ 458 0239 02        		.byte	2
+ 459 023a 95        		.byte	-107
+ 460 023b 01        		.byte	1
+ 461 023c 75        		.byte	117
+ 462 023d 09        		.byte	9
+ 463 023e 16        		.byte	22
+ 464 023f 00        		.byte	0
+ 465 0240 FF        		.byte	-1
+ 466 0241 26        		.byte	38
+ 467 0242 FF        		.byte	-1
+ 468 0243 00        		.byte	0
+ 469 0244 45        		.byte	69
+ 470 0245 2E        		.byte	46
+ 471 0246 65        		.byte	101
+ 472 0247 14        		.byte	20
+ 473 0248 09        		.byte	9
+ 474 0249 35        		.byte	53
+ 475 024a 81        		.byte	-127
+ 476 024b 02        		.byte	2
+ 477 024c 75        		.byte	117
+ 478 024d 04        		.byte	4
+ 479 024e 15        		.byte	21
+ 480 024f 00        		.byte	0
+ 481 0250 25        		.byte	37
+ 482 0251 07        		.byte	7
+ 483 0252 46        		.byte	70
+ 484 0253 3B        		.byte	59
+ 485 0254 01        		.byte	1
+ 486 0255 09        		.byte	9
+ 487 0256 39        		.byte	57
+ 488 0257 81        		.byte	-127
+ 489 0258 42        		.byte	66
+ 490 0259 95        		.byte	-107
+ 491 025a 08        		.byte	8
+ 492 025b 75        		.byte	117
+ 493 025c 01        		.byte	1
+ 494 025d 25        		.byte	37
+ 495 025e 01        		.byte	1
+ 496 025f 45        		.byte	69
+ 497 0260 01        		.byte	1
+ 498 0261 65        		.byte	101
+ 499 0262 00        		.byte	0
+ 500 0263 05        		.byte	5
+ 501 0264 09        		.byte	9
+ 502 0265 19        		.byte	25
+ 503 0266 01        		.byte	1
+ 504 0267 29        		.byte	41
+ 505 0268 08        		.byte	8
+ 506 0269 81        		.byte	-127
+ 507 026a 02        		.byte	2
+ 508 026b C0        		.byte	-64
+ 509 026c B4        		.byte	-76
+ 510 026d 95        		.byte	-107
+ 511 026e 01        		.byte	1
+ 512 026f 09        		.byte	9
+ 513 0270 36        		.byte	54
+ 514 0271 81        		.byte	-127
+ 515 0272 02        		.byte	2
+ 516 0273 75        		.byte	117
+ 517 0274 05        		.byte	5
+ 518 0275 81        		.byte	-127
+ 519 0276 01        		.byte	1
+ 520 0277 C0        		.byte	-64
+ 521 0278 0000 0000 		.zero	6
+ 521      0000 
+ 522               		.text
+ 523               	.Letext0:
+ 524               		.file 1 "/usr/lib/avr/include/stdint.h"
+ 525               		.file 2 "usbdescr.h"
+ 526               		.file 3 "usbdescr.c"
+DEFINED SYMBOLS
+                            *ABS*:00000000 usbdescr.c
+     /tmp/ccpjyXN2.s:2      *ABS*:0000003e __SP_H__
+     /tmp/ccpjyXN2.s:3      *ABS*:0000003d __SP_L__
+     /tmp/ccpjyXN2.s:4      *ABS*:0000003f __SREG__
+     /tmp/ccpjyXN2.s:5      *ABS*:00000000 __tmp_reg__
+     /tmp/ccpjyXN2.s:6      *ABS*:00000001 __zero_reg__
+     /tmp/ccpjyXN2.s:14     .progmem.data:00000000 usbConfigurationDescFFP
+     /tmp/ccpjyXN2.s:48     .progmem.data:00000022 usbConfigurationDesc3DP
+     /tmp/ccpjyXN2.s:82     .progmem.data:00000044 usbDeviceDescFFP
+     /tmp/ccpjyXN2.s:100    .progmem.data:00000056 usbDeviceDescPP
+     /tmp/ccpjyXN2.s:118    .progmem.data:00000068 usbDeviceDesc3DP
+     /tmp/ccpjyXN2.s:136    .progmem.data:0000007a usbStringDescProFFP
+     /tmp/ccpjyXN2.s:187    .progmem.data:000000d6 usbStringDescProPP
+     /tmp/ccpjyXN2.s:233    .progmem.data:00000128 usbStringDescPro3DP
+     /tmp/ccpjyXN2.s:272    .progmem.data:0000016c usbStringDescSer
+     /tmp/ccpjyXN2.s:282    .progmem.data:00000176 usbStringDescMan
+     /tmp/ccpjyXN2.s:312    .progmem.data:000001a8 usbStringDescLan
+     /tmp/ccpjyXN2.s:319    .progmem.data:000001ac usbHidRepDescFFP
+     /tmp/ccpjyXN2.s:426    .progmem.data:0000021a usbHidRepDesc3DP
+
+NO UNDEFINED SYMBOLS

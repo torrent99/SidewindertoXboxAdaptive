@@ -1,0 +1,763 @@
+Archive member included to satisfy reference by file (symbol)
+
+/usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+                              /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o (exit)
+/usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+                              main.o (__do_clear_bss)
+/usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+                              usb_hid.o (eeprom_read_byte)
+/usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+                              usb_hid.o (eeprom_write_byte)
+
+Allocating common symbols
+Common symbol       size              file
+
+sw_report           0x7               3DPro.o
+hat_bits            0x1               main.o
+sw_reportsz         0x1               main.o
+sw_id               0x1               3DPro.o
+idle_cnt            0x1               main.o
+usb_configuration   0x1               usb_hid.o
+sw_repsav           0x7               main.o
+hat_val             0x1               main.o
+usb_suspend         0x1               usb_hid.o
+sw_repcopy          0x7               main.o
+idle_rate           0x1               main.o
+
+Discarded input sections
+
+ .data          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .bss           0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .text          0x00000000        0x0 main.o
+ .data          0x00000000        0x0 main.o
+ .bss           0x00000000        0x0 main.o
+ .text          0x00000000        0x0 3DPro.o
+ .data          0x00000000        0x0 3DPro.o
+ .text          0x00000000        0x0 usb_hid.o
+ .data          0x00000000        0x0 usb_hid.o
+ .bss           0x00000000        0x0 usb_hid.o
+ .text          0x00000000        0x0 usbdescr.o
+ .data          0x00000000        0x0 usbdescr.o
+ .bss           0x00000000        0x0 usbdescr.o
+ .data          0x00000000        0x0 3DProasm.o
+ .text          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .data          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .bss           0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.mul
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.div
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc   0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.prologue
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.builtins
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.fmul
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text.libgcc.fixed
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ .text          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .data          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .bss           0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.mul
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.div
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc   0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.prologue
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.builtins
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.fmul
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text.libgcc.fixed
+                0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+ .text          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+ .data          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+ .bss           0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+ .text          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+ .data          0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+ .bss           0x00000000        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+
+Memory Configuration
+
+Name             Origin             Length             Attributes
+text             0x00000000         0x00020000         xr
+data             0x00800060         0x0000ffa0         rw !x
+eeprom           0x00810000         0x00010000         rw !x
+fuse             0x00820000         0x00000003         rw !x
+lock             0x00830000         0x00000400         rw !x
+signature        0x00840000         0x00000400         rw !x
+user_signatures  0x00850000         0x00000400         rw !x
+*default*        0x00000000         0xffffffff
+
+Linker script and memory map
+
+Address of section .data set to 0x800100
+LOAD /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+LOAD main.o
+LOAD 3DPro.o
+LOAD usb_hid.o
+LOAD usbdescr.o
+LOAD 3DProasm.o
+LOAD /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libm.a
+START GROUP
+LOAD /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a
+LOAD /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libm.a
+LOAD /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libc.a
+LOAD /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a
+END GROUP
+                0x00020000                __TEXT_REGION_LENGTH__ = DEFINED (__TEXT_REGION_LENGTH__)?__TEXT_REGION_LENGTH__:0x20000
+                0x0000ffa0                __DATA_REGION_LENGTH__ = DEFINED (__DATA_REGION_LENGTH__)?__DATA_REGION_LENGTH__:0xffa0
+                0x00010000                __EEPROM_REGION_LENGTH__ = DEFINED (__EEPROM_REGION_LENGTH__)?__EEPROM_REGION_LENGTH__:0x10000
+                [0x00000003]                __FUSE_REGION_LENGTH__ = DEFINED (__FUSE_REGION_LENGTH__)?__FUSE_REGION_LENGTH__:0x400
+                0x00000400                __LOCK_REGION_LENGTH__ = DEFINED (__LOCK_REGION_LENGTH__)?__LOCK_REGION_LENGTH__:0x400
+                0x00000400                __SIGNATURE_REGION_LENGTH__ = DEFINED (__SIGNATURE_REGION_LENGTH__)?__SIGNATURE_REGION_LENGTH__:0x400
+                0x00000400                __USER_SIGNATURE_REGION_LENGTH__ = DEFINED (__USER_SIGNATURE_REGION_LENGTH__)?__USER_SIGNATURE_REGION_LENGTH__:0x400
+
+.hash
+ *(.hash)
+
+.dynsym
+ *(.dynsym)
+
+.dynstr
+ *(.dynstr)
+
+.gnu.version
+ *(.gnu.version)
+
+.gnu.version_d
+ *(.gnu.version_d)
+
+.gnu.version_r
+ *(.gnu.version_r)
+
+.rel.init
+ *(.rel.init)
+
+.rela.init
+ *(.rela.init)
+
+.rel.text
+ *(.rel.text)
+ *(.rel.text.*)
+ *(.rel.gnu.linkonce.t*)
+
+.rela.text
+ *(.rela.text)
+ *(.rela.text.*)
+ *(.rela.gnu.linkonce.t*)
+
+.rel.fini
+ *(.rel.fini)
+
+.rela.fini
+ *(.rela.fini)
+
+.rel.rodata
+ *(.rel.rodata)
+ *(.rel.rodata.*)
+ *(.rel.gnu.linkonce.r*)
+
+.rela.rodata
+ *(.rela.rodata)
+ *(.rela.rodata.*)
+ *(.rela.gnu.linkonce.r*)
+
+.rel.data
+ *(.rel.data)
+ *(.rel.data.*)
+ *(.rel.gnu.linkonce.d*)
+
+.rela.data
+ *(.rela.data)
+ *(.rela.data.*)
+ *(.rela.gnu.linkonce.d*)
+
+.rel.ctors
+ *(.rel.ctors)
+
+.rela.ctors
+ *(.rela.ctors)
+
+.rel.dtors
+ *(.rel.dtors)
+
+.rela.dtors
+ *(.rela.dtors)
+
+.rel.got
+ *(.rel.got)
+
+.rela.got
+ *(.rela.got)
+
+.rel.bss
+ *(.rel.bss)
+
+.rela.bss
+ *(.rela.bss)
+
+.rel.plt
+ *(.rel.plt)
+
+.rela.plt
+ *(.rela.plt)
+
+.text           0x00000000     0x1076
+ *(.vectors)
+ .vectors       0x00000000       0xac /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+                0x00000000                __vectors
+                0x00000000                __vector_default
+ *(.vectors)
+ *(.progmem.gcc*)
+                0x000000ac                . = ALIGN (0x2)
+                0x000000ac                __trampolines_start = .
+ *(.trampolines)
+ .trampolines   0x000000ac        0x0 linker stubs
+ *(.trampolines*)
+                0x000000ac                __trampolines_end = .
+ *libprintf_flt.a:*(.progmem.data)
+ *libc.a:*(.progmem.data)
+ *(.progmem*)
+ .progmem.data  0x000000ac       0x74 usb_hid.o
+ .progmem.data  0x00000120      0x27e usbdescr.o
+                0x00000120                usbConfigurationDescFFP
+                0x00000142                usbConfigurationDesc3DP
+                0x00000164                usbDeviceDescFFP
+                0x00000176                usbDeviceDescPP
+                0x00000188                usbDeviceDesc3DP
+                0x0000019a                usbStringDescProFFP
+                0x000001f6                usbStringDescProPP
+                0x00000248                usbStringDescPro3DP
+                0x0000028c                usbStringDescSer
+                0x00000296                usbStringDescMan
+                0x000002c8                usbStringDescLan
+                0x000002cc                usbHidRepDescFFP
+                0x0000033a                usbHidRepDesc3DP
+                0x0000039e                . = ALIGN (0x2)
+ *(.jumptables)
+ *(.jumptables*)
+ *(.lowtext)
+ *(.lowtext*)
+                0x0000039e                __ctors_start = .
+ *(.ctors)
+                0x0000039e                __ctors_end = .
+                0x0000039e                __dtors_start = .
+ *(.dtors)
+                0x0000039e                __dtors_end = .
+ SORT(*)(.ctors)
+ SORT(*)(.dtors)
+ *(.init0)
+ .init0         0x0000039e        0x0 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+                0x0000039e                __init
+ *(.init0)
+ *(.init1)
+ *(.init1)
+ *(.init2)
+ .init2         0x0000039e        0xc /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ *(.init2)
+ *(.init3)
+ .init3         0x000003aa       0x18 main.o
+                0x000003aa                Init3
+ *(.init3)
+ *(.init4)
+ .init4         0x000003c2       0x10 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+                0x000003c2                __do_clear_bss
+ *(.init4)
+ *(.init5)
+ *(.init5)
+ *(.init6)
+ *(.init6)
+ *(.init7)
+ *(.init7)
+ *(.init8)
+ *(.init8)
+ *(.init9)
+ .init9         0x000003d2        0x4 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ *(.init9)
+ *(.text)
+ .text          0x000003d6        0x2 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+                0x000003d6                __vector_38
+                0x000003d6                __vector_22
+                0x000003d6                __vector_28
+                0x000003d6                __vector_32
+                0x000003d6                __vector_34
+                0x000003d6                __vector_24
+                0x000003d6                __vector_12
+                0x000003d6                __bad_interrupt
+                0x000003d6                __vector_6
+                0x000003d6                __vector_31
+                0x000003d6                __vector_35
+                0x000003d6                __vector_39
+                0x000003d6                __vector_3
+                0x000003d6                __vector_23
+                0x000003d6                __vector_30
+                0x000003d6                __vector_25
+                0x000003d6                __vector_13
+                0x000003d6                __vector_17
+                0x000003d6                __vector_19
+                0x000003d6                __vector_7
+                0x000003d6                __vector_41
+                0x000003d6                __vector_27
+                0x000003d6                __vector_5
+                0x000003d6                __vector_33
+                0x000003d6                __vector_37
+                0x000003d6                __vector_4
+                0x000003d6                __vector_9
+                0x000003d6                __vector_2
+                0x000003d6                __vector_21
+                0x000003d6                __vector_15
+                0x000003d6                __vector_36
+                0x000003d6                __vector_29
+                0x000003d6                __vector_40
+                0x000003d6                __vector_8
+                0x000003d6                __vector_26
+                0x000003d6                __vector_14
+                0x000003d6                __vector_16
+                0x000003d6                __vector_18
+                0x000003d6                __vector_20
+                0x000003d6                __vector_42
+ .text          0x000003d8      0x2a4 3DProasm.o
+                0x000003d8                __vector_1
+                0x00000472                CopyFFPData
+                0x0000050c                Copy3DPData
+                0x000005e6                QueryFFP
+                0x0000064a                Query3DP
+                0x0000067c                . = ALIGN (0x2)
+ *(.text.*)
+ .text.sw_repchg
+                0x0000067c       0x9c main.o
+ .text.startup.main
+                0x00000718      0x1a2 main.o
+                0x00000718                main
+ .text.Delay_1024
+                0x000008ba       0x1a 3DPro.o
+ .text.Delay_64
+                0x000008d4       0x12 3DPro.o
+ .text.Trigger  0x000008e6        0xe 3DPro.o
+ .text.Flash_LED_12MS
+                0x000008f4       0x10 3DPro.o
+ .text.patchbutt
+                0x00000904       0x18 3DPro.o
+ .text.Check3DPPkt.constprop.0
+                0x0000091c       0x22 3DPro.o
+ .text.CheckFFPPkt.constprop.1
+                0x0000093e       0x34 3DPro.o
+ .text.init_hw  0x00000972      0x1a4 3DPro.o
+                0x00000972                init_hw
+ .text.getdata  0x00000b16       0x70 3DPro.o
+                0x00000b16                getdata
+ .text.lookup   0x00000b86       0x22 usb_hid.o
+ .text.usb_send_EP0
+                0x00000ba8       0x8c usb_hid.o
+ .text.usb_init
+                0x00000c34       0x56 usb_hid.o
+                0x00000c34                usb_init
+ .text.usb_configured
+                0x00000c8a       0x1a usb_hid.o
+                0x00000c8a                usb_configured
+ .text.usb_IN_busy
+                0x00000ca4       0x32 usb_hid.o
+                0x00000ca4                usb_IN_busy
+ .text.usb_send_IN
+                0x00000cd6       0x3a usb_hid.o
+                0x00000cd6                usb_send_IN
+ .text.__vector_10
+                0x00000d10       0xc0 usb_hid.o
+                0x00000d10                __vector_10
+ .text.__vector_11
+                0x00000dd0      0x276 usb_hid.o
+                0x00000dd0                __vector_11
+ .text.avr-libc
+                0x00001046       0x10 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+                0x00001046                eeprom_read_byte
+ .text.avr-libc
+                0x00001056       0x1c /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+                0x00001056                eeprom_write_byte
+                0x00001058                eeprom_write_r18
+                0x00001072                . = ALIGN (0x2)
+ *(.fini9)
+ .fini9         0x00001072        0x0 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+                0x00001072                exit
+                0x00001072                _exit
+ *(.fini9)
+ *(.fini8)
+ *(.fini8)
+ *(.fini7)
+ *(.fini7)
+ *(.fini6)
+ *(.fini6)
+ *(.fini5)
+ *(.fini5)
+ *(.fini4)
+ *(.fini4)
+ *(.fini3)
+ *(.fini3)
+ *(.fini2)
+ *(.fini2)
+ *(.fini1)
+ *(.fini1)
+ *(.fini0)
+ .fini0         0x00001072        0x4 /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+ *(.fini0)
+                0x00001076                _etext = .
+
+.data           0x00800100        0x0 load address 0x00001076
+                [!provide]                PROVIDE (__data_start, .)
+ *(.data)
+ *(.data*)
+ *(.gnu.linkonce.d*)
+ *(.rodata)
+ *(.rodata*)
+ *(.gnu.linkonce.r*)
+                0x00800100                . = ALIGN (0x2)
+                0x00800100                _edata = .
+                [!provide]                PROVIDE (__data_end, .)
+
+.bss            0x00800100       0x77
+                0x00800100                PROVIDE (__bss_start, .)
+ *(.bss)
+ .bss           0x00800100        0x2 3DPro.o
+ .bss           0x00800102       0x58 3DProasm.o
+                0x00800103                sw_idbuf
+                0x0080013f                sw_packet3
+                0x00800147                sw_packet2
+                0x0080014f                sw_packet1
+                0x00800151                ffp_packet
+                0x00800157                sw_pktptr
+                0x00800159                sw_clkcnt
+ *(.bss*)
+ *(COMMON)
+ COMMON         0x0080015a       0x13 main.o
+                0x0080015a                hat_bits
+                0x0080015b                sw_reportsz
+                0x0080015c                idle_cnt
+                0x0080015d                sw_repsav
+                0x00800164                hat_val
+                0x00800165                sw_repcopy
+                0x0080016c                idle_rate
+ COMMON         0x0080016d        0x8 3DPro.o
+                0x0080016d                sw_report
+                0x00800174                sw_id
+ COMMON         0x00800175        0x2 usb_hid.o
+                0x00800175                usb_configuration
+                0x00800176                usb_suspend
+                0x00800177                PROVIDE (__bss_end, .)
+                0x00001076                __data_load_start = LOADADDR (.data)
+                0x00001076                __data_load_end = (__data_load_start + SIZEOF (.data))
+
+.noinit         0x00800177        0x0
+                [!provide]                PROVIDE (__noinit_start, .)
+ *(.noinit*)
+                [!provide]                PROVIDE (__noinit_end, .)
+                0x00800177                _end = .
+                [!provide]                PROVIDE (__heap_start, .)
+
+.eeprom         0x00810000        0x0
+ *(.eeprom*)
+                0x00810000                __eeprom_end = .
+
+.fuse
+ *(.fuse)
+ *(.lfuse)
+ *(.hfuse)
+ *(.efuse)
+
+.lock
+ *(.lock*)
+
+.signature
+ *(.signature*)
+
+.user_signatures
+ *(.user_signatures*)
+
+.stab           0x00000000      0xe94
+ *(.stab)
+ .stab          0x00000000      0xe94 3DProasm.o
+
+.stabstr        0x00000000       0x1c
+ *(.stabstr)
+ .stabstr       0x00000000       0x1c 3DProasm.o
+
+.stab.excl
+ *(.stab.excl)
+
+.stab.exclstr
+ *(.stab.exclstr)
+
+.stab.index
+ *(.stab.index)
+
+.stab.indexstr
+ *(.stab.indexstr)
+
+.comment        0x00000000       0x11
+ *(.comment)
+ .comment       0x00000000       0x11 main.o
+                                 0x12 (size before relaxing)
+ .comment       0x00000011       0x12 3DPro.o
+ .comment       0x00000011       0x12 usb_hid.o
+ .comment       0x00000011       0x12 usbdescr.o
+
+.note.gnu.avr.deviceinfo
+                0x00000000       0x40
+ .note.gnu.avr.deviceinfo
+                0x00000000       0x40 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+
+.note.gnu.build-id
+ *(.note.gnu.build-id)
+
+.debug
+ *(.debug)
+
+.line
+ *(.line)
+
+.debug_srcinfo
+ *(.debug_srcinfo)
+
+.debug_sfnames
+ *(.debug_sfnames)
+
+.debug_aranges  0x00000000      0x100
+ *(.debug_aranges)
+ .debug_aranges
+                0x00000000       0x30 main.o
+ .debug_aranges
+                0x00000030       0x60 3DPro.o
+ .debug_aranges
+                0x00000090       0x58 usb_hid.o
+ .debug_aranges
+                0x000000e8       0x18 usbdescr.o
+
+.debug_pubnames
+ *(.debug_pubnames)
+
+.debug_info     0x00000000     0x25a8
+ *(.debug_info .gnu.linkonce.wi.*)
+ .debug_info    0x00000000      0x9f4 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .debug_info    0x000009f4      0x3fa main.o
+ .debug_info    0x00000dee      0x6a0 3DPro.o
+ .debug_info    0x0000148e      0xbf0 usb_hid.o
+ .debug_info    0x0000207e      0x52a usbdescr.o
+
+.debug_abbrev   0x00000000     0x11b5
+ *(.debug_abbrev)
+ .debug_abbrev  0x00000000      0x96a /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .debug_abbrev  0x0000096a      0x1e4 main.o
+ .debug_abbrev  0x00000b4e      0x29a 3DPro.o
+ .debug_abbrev  0x00000de8      0x300 usb_hid.o
+ .debug_abbrev  0x000010e8       0xcd usbdescr.o
+
+.debug_line     0x00000000      0xd9f
+ *(.debug_line .debug_line.* .debug_line_end)
+ .debug_line    0x00000000       0x1a /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .debug_line    0x0000001a      0x353 main.o
+ .debug_line    0x0000036d      0x405 3DPro.o
+ .debug_line    0x00000772      0x5d6 usb_hid.o
+ .debug_line    0x00000d48       0x57 usbdescr.o
+
+.debug_frame    0x00000000      0x264
+ *(.debug_frame)
+ .debug_frame   0x00000000       0x44 main.o
+ .debug_frame   0x00000044       0xc4 3DPro.o
+ .debug_frame   0x00000108      0x15c usb_hid.o
+
+.debug_str      0x00000000      0xca4
+ *(.debug_str)
+ .debug_str     0x00000000      0x371 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ .debug_str     0x00000371      0x2d6 main.o
+                                0x312 (size before relaxing)
+ .debug_str     0x00000647       0xdd 3DPro.o
+                                0x31b (size before relaxing)
+ .debug_str     0x00000724      0x575 usb_hid.o
+                                0x75e (size before relaxing)
+ .debug_str     0x00000c99        0xb usbdescr.o
+                                0x582 (size before relaxing)
+
+.debug_loc      0x00000000      0xe01
+ *(.debug_loc)
+ .debug_loc     0x00000000      0x17d main.o
+ .debug_loc     0x0000017d      0x2d6 3DPro.o
+ .debug_loc     0x00000453      0x9ae usb_hid.o
+
+.debug_macinfo
+ *(.debug_macinfo)
+
+.debug_weaknames
+ *(.debug_weaknames)
+
+.debug_funcnames
+ *(.debug_funcnames)
+
+.debug_typenames
+ *(.debug_typenames)
+
+.debug_varnames
+ *(.debug_varnames)
+
+.debug_pubtypes
+ *(.debug_pubtypes)
+
+.debug_ranges   0x00000000      0x160
+ *(.debug_ranges)
+ .debug_ranges  0x00000000       0x38 main.o
+ .debug_ranges  0x00000038       0x80 3DPro.o
+ .debug_ranges  0x000000b8       0xa8 usb_hid.o
+
+.debug_macro
+ *(.debug_macro)
+OUTPUT(main.elf elf32-avr)
+LOAD linker stubs
+
+Cross Reference Table
+
+Symbol                                            File
+Copy3DPData                                       3DProasm.o
+                                                  3DPro.o
+CopyFFPData                                       3DProasm.o
+                                                  3DPro.o
+Init3                                             main.o
+Query3DP                                          3DProasm.o
+                                                  3DPro.o
+QueryFFP                                          3DProasm.o
+                                                  3DPro.o
+__FUSE_REGION_LENGTH__                            /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__bad_interrupt                                   /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__bss_end                                         /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+__bss_start                                       /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+__do_clear_bss                                    /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_clear_bss.o)
+                                                  usb_hid.o
+                                                  3DPro.o
+                                                  main.o
+__heap_end                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__init                                            /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__stack                                           /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_1                                        3DProasm.o
+                                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_10                                       usb_hid.o
+                                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_11                                       usb_hid.o
+                                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_12                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_13                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_14                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_15                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_16                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_17                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_18                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_19                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_2                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_20                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_21                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_22                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_23                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_24                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_25                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_26                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_27                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_28                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_29                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_3                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_30                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_31                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_32                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_33                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_34                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_35                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_36                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_37                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_38                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_39                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_4                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_40                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_41                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_42                                       /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_5                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_6                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_7                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_8                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_9                                        /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vector_default                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+__vectors                                         /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+_exit                                             /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+eeprom_read_byte                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eerd_byte.o)
+                                                  usb_hid.o
+eeprom_write_byte                                 /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+                                                  usb_hid.o
+eeprom_write_r18                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/libatmega32u4.a(eewr_byte.o)
+exit                                              /usr/lib/gcc/avr/5.4.0/avr5/libgcc.a(_exit.o)
+                                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+ffp_packet                                        3DProasm.o
+                                                  3DPro.o
+getdata                                           3DPro.o
+                                                  main.o
+hat_bits                                          main.o
+hat_val                                           main.o
+idle_cnt                                          main.o
+                                                  usb_hid.o
+idle_rate                                         main.o
+                                                  usb_hid.o
+init_hw                                           3DPro.o
+                                                  main.o
+main                                              main.o
+                                                  /usr/lib/gcc/avr/5.4.0/../../../avr/lib/avr5/crtatmega32u4.o
+sw_clkcnt                                         3DProasm.o
+                                                  3DPro.o
+sw_id                                             3DPro.o
+                                                  usb_hid.o
+                                                  main.o
+sw_idbuf                                          3DProasm.o
+sw_packet1                                        3DProasm.o
+                                                  3DPro.o
+sw_packet2                                        3DProasm.o
+sw_packet3                                        3DProasm.o
+sw_pktptr                                         3DProasm.o
+sw_repcopy                                        main.o
+sw_report                                         3DPro.o
+                                                  3DProasm.o
+                                                  usb_hid.o
+                                                  main.o
+sw_reportsz                                       main.o
+                                                  usb_hid.o
+sw_repsav                                         main.o
+usbConfigurationDesc3DP                           usbdescr.o
+                                                  usb_hid.o
+usbConfigurationDescFFP                           usbdescr.o
+                                                  usb_hid.o
+usbDeviceDesc3DP                                  usbdescr.o
+                                                  usb_hid.o
+usbDeviceDescFFP                                  usbdescr.o
+                                                  usb_hid.o
+usbDeviceDescPP                                   usbdescr.o
+                                                  usb_hid.o
+usbHidRepDesc3DP                                  usbdescr.o
+                                                  usb_hid.o
+usbHidRepDescFFP                                  usbdescr.o
+                                                  usb_hid.o
+usbStringDescLan                                  usbdescr.o
+                                                  usb_hid.o
+usbStringDescMan                                  usbdescr.o
+                                                  usb_hid.o
+usbStringDescPro3DP                               usbdescr.o
+                                                  usb_hid.o
+usbStringDescProFFP                               usbdescr.o
+                                                  usb_hid.o
+usbStringDescProPP                                usbdescr.o
+                                                  usb_hid.o
+usbStringDescSer                                  usbdescr.o
+                                                  usb_hid.o
+usb_IN_busy                                       usb_hid.o
+                                                  main.o
+usb_configuration                                 usb_hid.o
+usb_configured                                    usb_hid.o
+                                                  main.o
+usb_init                                          usb_hid.o
+                                                  main.o
+usb_send_IN                                       usb_hid.o
+                                                  main.o
+usb_suspend                                       usb_hid.o
+                                                  main.o
